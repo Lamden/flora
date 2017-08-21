@@ -1,0 +1,33 @@
+{
+  "name": "flora",
+  "version": "1.0.0",
+  "description": "A smart contract package manager running on IPFS. Edit",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hadron-Ledger/flora.git"
+  },
+  "keywords": [
+    "ipfs",
+    "ethereum",
+    "blockchain",
+    "decentralized",
+    "package",
+    "manager"
+  ],
+  "author": "Stuart Farmer, James Munsch",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hadron-Ledger/flora/issues"
+  },
+  "homepage": "https://github.com/Hadron-Ledger/flora#readme",
+  "dependencies": {
+    "ipfs-daemon": "^0.3.1",
+    "orbit-db": "^0.17.3",
+    "vorpal": "^1.12.0",
+    "web3": "^1.0.0-beta.18"
+  }
+}
