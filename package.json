@@ -25,8 +25,10 @@
   },
   "homepage": "https://github.com/Hadron-Ledger/flora#readme",
   "dependencies": {
+    "async": "^2.5.0",
     "ipfs-daemon": "^0.3.1",
     "orbit-db": "^0.17.3",
+    "sync": "^0.2.5",
     "vorpal": "^1.12.0",
     "web3": "^1.0.0-beta.18"
   }
