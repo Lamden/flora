@@ -106,26 +106,19 @@ vorpal
                 var sol = template(doc.example)
 
                 var output = solc.compile(sol, 1)
-                //if (output.contracts)
-                console.log(Object.keys(output.contracts))
-                if (output.errors.length > 0) {
-                  throw output.errors
-                }
-                callback();
+                if (Object.keys(output.contracts).length > 0) {
+                  // it builds, upload it to the database
+                  db.put(doc)
+                  .then((hash) => {
+                    console.log(hash)
+                    callback();
+                  });
+                } 
               }
               
             });
         })
       })
-    //
-
-    // // check if the provided example payload compiles with the provided tsol file
-    // 
-    // var testSol = template(payload)
-    //
-
-    //db.get(args.packageName)
-    
   });
 
 // vorpal
