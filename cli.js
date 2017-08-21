@@ -4,7 +4,8 @@ const IPFS = require('ipfs-daemon/src/ipfs-node-daemon')
 const OrbitDB = require('orbit-db')
 const fs = require('fs')
 const path = require('path')
-//const solc = require('solc')
+const Promise = require('promise')
+const solc = require('solc')
 const handlebars = require('handlebars')
 
 const floraID = '2ed4ab81-b91e-4d88-a64f-02d82c623b97'
@@ -25,6 +26,35 @@ document template
 
 */
 
+function readFile(filename){
+  return new Promise(function (fulfill, reject){
+    fs.readFile(filename, function (err, data) {
+      if (err) {
+        throw reject(err)
+      }
+      fulfill(data.toString())
+    });
+  });
+}
+
+function get(db, arg) {
+  return new Promise(function (fulfill, reject){
+    fulfill(db.get(arg))
+  });
+}
+
+function compile(code) {
+  return new Promise(function (fulfill, reject){
+    var output = solc.compile(code, 1)
+    if (output.errors.length > 0) {
+      reject(output.errors)
+    }
+    else {
+      fulfill(output)
+    }
+  });
+}
+
 vorpal
   .command('install <packageName>')
   .description('Attempts to install a Solidity smart contract from the IPFS package database.')
@@ -41,51 +71,61 @@ vorpal
   .description('Uploads a new .tsol package to the IPFS package database.')
   .action(function (args, callback) {
 
-    console.log(args)
     // load file
-    var contract = null
-    var p = path.join(__dirname, args.fileName)
-    console.log(p)
-    fs.readFile(p, function (err, data) {
-      if (err) {
-        throw err; 
-      }
-      contract = data.toString()
-      console.log(contract)
-    });
+    readFile(path.join(__dirname, args.fileName))
+      .then((data) => {
+        return data
+      })
+      .then((file) => {
+        readFile(path.join(__dirname, args.options.example))
+        .then((data => {
+          return [file, data]
+        }))
+        .then((data) => {
+          var contract = data[0]
+          var example = data[1]
 
-    // load example payload
-    var payload = null
-    var p = path.join(__dirname, args.options.example)
-    fs.readFile(p, function (err, data) {
-      if (err) {
-        throw err; 
-      }
-      payload = data.toString()
-    });
+          // prepare document to upload
+          var doc = {
+            _id : args.options.name,
+            sol : contract,
+            example : JSON.parse(example),
+            filename : args.fileName
+          }
+          console.log(doc)
+          // make sure the package does not already exist on ipfs
+          get(db, args.options.name)
+            .then((results) => {
+              if (results.length > 0) {
+                throw 'Package with provided name already exists online. Choose another.'
+              }
+              else {
 
-    // prepare document to upload
-    var doc = {
-      _id : args.options.name,
-      sol : contract,
-      example : args.options.example,
-      filename : args.fileName
-    }
+                // if not, lets make sure its valid solc
+                var template = handlebars.compile(doc.sol)
+                var sol = template(doc.example)
 
-    // check if it already exists on the package manager
-    results = db.get(args.options.name)
+                var output = solc.compile(sol, 1)
+                //if (output.contracts)
+                console.log(Object.keys(output.contracts))
+                if (output.errors.length > 0) {
+                  throw output.errors
+                }
+                callback();
+              }
+              
+            });
+        })
+      })
+    //
 
-    if (results.length > 0) {
-      throw 'Package with provided name already exists online. Choose another.'
-    }
-
-    // check if the provided example payload compiles with the provided tsol file
-    var template = handlebars.compile(contract)
-    var testSol = template(payload)
-    //var output = solc.compile(testSol, 1)
+    // // check if the provided example payload compiles with the provided tsol file
+    // 
+    // var testSol = template(payload)
+    //
 
     //db.get(args.packageName)
-    callback();
+    
   });
 
 // vorpal
