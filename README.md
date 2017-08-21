@@ -1,6 +1,16 @@
 # Flora
 ### Smart Contract Package Mangager on IPFS
 
+
+```
+nvm install 8.4.0
+nvm use 8.4.0
+npm install
+npm run flora
+upload example-contract/fixed_supply_token.tsol --example example-contract/example.json --name hmmmm
+```
+
+
 Flora is how you install smart contracts on your Hadron chain instances. It's as simple as running `flora install erc20` inside of your project directory. Smart contracts are stored on IPFS, so they are distributed around the world. Uploading your own is super easy as well. Just run ```flora upload my-package.tsol --name awesome-package --example example-payload.json```.
 
 Smart contracts are stored in .tsol files instead of .sol files. This is because smart contract packages are made to be customizable. A .tsol file uses {{handlebars}} to denote variables that can be adjusted. Here's an example:
