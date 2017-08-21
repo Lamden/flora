@@ -32,6 +32,8 @@ This is an ERC20 token contract that can be modified on the fly and reused as an
 }
 ```
 
-From there, you can deploy these contracts using the Hadron CLI.
+You save the .tsol and example payload seperately, and then upload them together. If they compile successfully, and the name you choose is globally unique, it will be on IPFS for others to download across the world.
+
+You can deploy .tsol files with the Hadron Wrapper CLI tool.
 
 For now, Flora is simply a document store. In the future, it will support multiple smart contract languages for different blockchain technologies, usernames, dependencies, and more.
