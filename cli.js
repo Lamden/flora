@@ -1,10 +1,10 @@
 const vorpal = require('vorpal')();
+const fsAutocomplete = require('vorpal-autocomplete-fs');
 const sync = require('sync');
 const IPFS = require('ipfs-daemon/src/ipfs-node-daemon')
 const OrbitDB = require('orbit-db')
 const fs = require('fs')
 const path = require('path')
-const Promise = require('promise')
 const solc = require('solc')
 const handlebars = require('handlebars')
 
@@ -13,6 +13,11 @@ const floraID = '2ed4ab81-b91e-4d88-a64f-02d82c623b97'
 const ipfs = new IPFS()
 const orbitdb = new OrbitDB(ipfs)
 const db = orbitdb.docstore(floraID)
+
+
+vorpal
+  .delimiter('flora:')
+  .show();
 
 /*
 
@@ -26,21 +31,12 @@ document template
 
 */
 
-function readFile(filename){
-  return new Promise(function (fulfill, reject){
-    fs.readFile(filename, function (err, data) {
-      if (err) {
-        throw reject(err)
-      }
-      fulfill(data.toString())
-    });
-  });
-}
-
-function get(db, arg) {
-  return new Promise(function (fulfill, reject){
-    fulfill(db.get(arg))
-  });
+function get(key) {
+  console.log('get key: ', key)
+  var value = db.get(key)
+  console.log('value: ', value)
+  if (value.length > 0) return Promise.reject('Package with provided name already exists online. Choose another.')
+  return Promise.resolve(value)
 }
 
 function compile(code) {
@@ -55,81 +51,85 @@ function compile(code) {
   });
 }
 
+function readFile(fn){
+  return new Promise((resolve, reject)=>{
+    fs.readFile(fn, (err, data)=>{
+      if (err){
+        reject(err)
+      }
+      else{
+        resolve(data)
+      }
+    })  
+  })
+  
+}
+
 vorpal
   .command('install <packageName>')
-  .description('Attempts to install a Solidity smart contract from the IPFS package database.')
+  .description('Attempts to install a Solidity smart tsol from the IPFS package database.')
   .action(function (args, callback) {
-    results = db.get(args.packageName)
+    var results = db.get(args.packageName);
     console.log(results)
     callback();
   });
 
 vorpal
+  .command('ls [dir]')
+  .option('-d, --dir [d]')
+  .description('list files in current dir')
+  .action(function (args, callback) {
+    if (args.options.example)
+    {
+      fs.readdir(args.options.example, (err, files) => {
+        files.forEach(file => {
+          console.log(file);
+        });
+      })
+    }
+    else
+    {
+      fs.readdir('.', (err, files) => {
+        files.forEach(file => {
+          console.log(file);
+        });
+      })
+    }
+  })
+
+
+vorpal
   .command('upload <fileName>')
+  .autocomplete(fsAutocomplete())
   .option('-n, --name <n>')
   .option('-e, --example <e>')
   .description('Uploads a new .tsol package to the IPFS package database.')
   .action(function (args, callback) {
+    // load files    
+    var package = [readFile(path.join(__dirname, args.fileName)),
+                   readFile(path.join(__dirname, args.options.example)),
+                   get(args.options.name)]
 
-    // load file
-    readFile(path.join(__dirname, args.fileName))
-      .then((data) => {
-        return data
+    Promise.all(package)
+      .then(values =>{
+        var [tsol_buf, json_buf, db_value] = values;
+// TODO : create a package.json type file so we don't have to type 140+
+// chars to do an upload
+        var doc = {
+          _id : args.options.name,
+          sol : tsol_buf.toString(),
+          example : JSON.parse(json_buf.toString()),
+          filename : args.fileName
+        }
+        // if not, lets make sure its valid solc
+        var template = handlebars.compile(doc.sol)
+        var sol = template(doc.example)
+        var output = solc.compile(sol, 1)
+        console.log('DONE')
       })
-      .then((file) => {
-        readFile(path.join(__dirname, args.options.example))
-        .then((data => {
-          return [file, data]
-        }))
-        .then((data) => {
-          var contract = data[0]
-          var example = data[1]
-
-          // prepare document to upload
-          var doc = {
-            _id : args.options.name,
-            sol : contract,
-            example : JSON.parse(example),
-            filename : args.fileName
-          }
-          console.log(doc)
-          // make sure the package does not already exist on ipfs
-          get(db, args.options.name)
-            .then((results) => {
-              if (results.length > 0) {
-                throw 'Package with provided name already exists online. Choose another.'
-              }
-              else {
-
-                // if not, lets make sure its valid solc
-                var template = handlebars.compile(doc.sol)
-                var sol = template(doc.example)
-
-                var output = solc.compile(sol, 1)
-                //if (output.contracts)
-                console.log(Object.keys(output.contracts))
-                if (output.errors.length > 0) {
-                  throw output.errors
-                }
-                callback();
-              }
-              
-            });
-        })
+      .catch(e => {
+        console.warn('Unable to upload', e.toString())
       })
-    //
-
-    // // check if the provided example payload compiles with the provided tsol file
-    // 
-    // var testSol = template(payload)
-    //
-
-    //db.get(args.packageName)
-    
-  });
-
-// vorpal
-//   .delimiter('flora$')
-//   .show();
+  })
 
 vorpal.parse(process.argv)
