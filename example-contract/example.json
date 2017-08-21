@@ -1,0 +1,7 @@
+{
+    'solidity_version':'0.4.15',
+    'contract_name':'Testcoin',
+    'symbol':'TST',
+    'asset_name':'Testcoin',
+    'total_supply':'1000000'
+}

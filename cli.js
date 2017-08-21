@@ -2,8 +2,10 @@ const vorpal = require('vorpal')();
 const sync = require('sync');
 const IPFS = require('ipfs-daemon/src/ipfs-node-daemon')
 const OrbitDB = require('orbit-db')
-var fs = require('fs')
-var solc = require('solc')
+const fs = require('fs')
+const path = require('path')
+//const solc = require('solc')
+const handlebars = require('handlebars')
 
 const floraID = '2ed4ab81-b91e-4d88-a64f-02d82c623b97'
 
@@ -34,14 +36,28 @@ vorpal
 
 vorpal
   .command('upload <fileName>')
-  .option('-n, --name')
-  .option('-e', '--example')
+  .option('-n, --name <n>')
+  .option('-e, --example <e>')
   .description('Uploads a new .tsol package to the IPFS package database.')
   .action(function (args, callback) {
 
+    console.log(args)
     // load file
-    payload = null
-    fs.readFile( args.fileName, function (err, data) {
+    var contract = null
+    var p = path.join(__dirname, args.fileName)
+    console.log(p)
+    fs.readFile(p, function (err, data) {
+      if (err) {
+        throw err; 
+      }
+      contract = data.toString()
+      console.log(contract)
+    });
+
+    // load example payload
+    var payload = null
+    var p = path.join(__dirname, args.options.example)
+    fs.readFile(p, function (err, data) {
       if (err) {
         throw err; 
       }
@@ -49,9 +65,9 @@ vorpal
     });
 
     // prepare document to upload
-    doc = {
+    var doc = {
       _id : args.options.name,
-      sol : payload,
+      sol : contract,
       example : args.options.example,
       filename : args.fileName
     }
@@ -60,8 +76,13 @@ vorpal
     results = db.get(args.options.name)
 
     if (results.length > 0) {
-      throw 'Package with provided name already exists online. Choose another.';
+      throw 'Package with provided name already exists online. Choose another.'
     }
+
+    // check if the provided example payload compiles with the provided tsol file
+    var template = handlebars.compile(contract)
+    var testSol = template(payload)
+    //var output = solc.compile(testSol, 1)
 
     //db.get(args.packageName)
     callback();

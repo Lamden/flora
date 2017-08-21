@@ -26,6 +26,7 @@
   "homepage": "https://github.com/Hadron-Ledger/flora#readme",
   "dependencies": {
     "async": "^2.5.0",
+    "handlebars": "^4.0.10",
     "ipfs-daemon": "^0.3.1",
     "orbit-db": "^0.17.3",
     "solc": "^0.4.15",
