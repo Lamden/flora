@@ -1,5 +1,5 @@
 {
-    "solidity_version":"0.4.15",
+    "solidity_version":"0.4.8",
     "contract_name":"Testcoin",
     "symbol":"TST",
     "asset_name":"Testcoin",

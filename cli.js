@@ -42,7 +42,8 @@ function get(key) {
 function compile(code) {
   return new Promise(function (fulfill, reject){
     var output = solc.compile(code, 1)
-    if (output.errors.length > 0) {
+    if (Object.keys(output.contracts).length <= 0) {
+      console.log(output)
       reject(output.errors)
     }
     else {
@@ -113,8 +114,6 @@ vorpal
     Promise.all(package)
       .then(values =>{
         var [tsol_buf, json_buf, db_value] = values;
-// TODO : create a package.json type file so we don't have to type 140+
-// chars to do an upload
         var doc = {
           _id : args.options.name,
           sol : tsol_buf.toString(),
@@ -124,12 +123,47 @@ vorpal
         // if not, lets make sure its valid solc
         var template = handlebars.compile(doc.sol)
         var sol = template(doc.example)
-        var output = solc.compile(sol, 1)
-        console.log('DONE')
+        return [Promise.resolve(doc), compile(sol), Promise.resolve(template)]
+      .then(promises =>{
+        return Promise.all(promises)
+      })
+      .then((doc, sol_output, template)=>{
+        if (Object.keys(sol_output.contracts).length > 0) {
+          return [db.put(doc), Promise.resolve(sol_output), Promise.resolve(template)]
+        } else {
+          throw 'sol_output failed'
+        }
+      })
+      .then((hash, sol_output, template)=>{
+        console.log(hash)
+        callback();
       })
       .catch(e => {
         console.warn('Unable to upload', e.toString())
+        callback();
       })
+
+//     Promise.all(package)
+//       .then(values =>{
+//         var [tsol_buf, json_buf, db_value] = values;
+// // TODO : create a package.json type file so we don't have to type 140+
+// // chars to do an upload
+//         var doc = {
+//           _id : args.options.name,
+//           sol : tsol_buf.toString(),
+//           example : JSON.parse(json_buf.toString()),
+//           filename : args.fileName
+//         }
+//         // if not, lets make sure its valid solc
+//         var template = handlebars.compile(doc.sol)
+//         var sol = template(doc.example)
+//         var output = solc.compile(sol, 1)
+//         console.log('DONE')
+//       })
+//       .catch(e => {
+//         console.warn('Unable to upload', e.toString())
+//       })
   })
+})
 
 vorpal.parse(process.argv)
