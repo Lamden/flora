@@ -4,7 +4,7 @@ import click
 import subprocess
 import time
 import pickle
-#from ipfs import IPFS
+
 # where's the pickle?
 MASTER_DB_HASH = 0
 
@@ -24,10 +24,7 @@ def connect():
 	print('Connecting to IPFS...')
 	return ipfsapi.connect('127.0.0.1', 5001)
 
-@click.group()
-def cli():
-	"""This script showcases different terminal UI helpers in Click."""
-	# assume the daemon is running
+def start_up():
 	try:
 		api = connect()
 	except Exception as e:
@@ -53,13 +50,31 @@ def cli():
 	IPFS.api = api
 	IPFS.proc = proc
 
-@cli.command()
-def install():
+def tear_down():
+	# if a subprocess was started by this script, assume the user doesn't want it 
+	# running after it's done, and vice versa, so kill it if needed
 	if IPFS.proc != None:
 		print('Killing IPFS Daemon...')
 		proc = subprocess.Popen(['killall', 'ipfs'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 		print('Done.')
-	click.echo('package')
 
-# if a subprocess was started by this script, assume the user doesn't want it 
-# running after it's done, and vice versa, so kill it if needed
+@click.group()
+@click.option('-t', '--timeout', default=3, help='Timeout in seconds per connection attempt to IPFS.')
+@click.option('-r', '--retries', default=10, help='Number of IPFS connection attempts before giving up.')
+def cli(timeout, retries):
+	TIMEOUT = timeout
+	RETRIES = retries
+	start_up()
+
+@cli.command()
+@click.option('-f', '--filepath', default=3, help='Path to install template. Will assume current working directory.')
+@click.option('-n', '--name', default=3, help='Name of package to install.')
+def install():
+	tear_down()
+
+@cli.command()
+@click.option('-f', '--filepath', default=3, help='Path to Template Solidity Contract to upload.')
+@click.option('-e', '--example', default=3, help='Path to Example Payload to upload.')
+@click.option('-n', '--name', default=3, help='Name to call package.')
+def upload():
+	tear_down()
