@@ -12,17 +12,17 @@ class IPFS(object):
 		self.api = None
 		self.proc = None
 		try:
-			api = connect()
+			self.api = connect()
 		except Exception as e:
 			# if not, start daemon
 			print('IPFS Daemon not running, starting now...')
-			proc = subprocess.Popen(['ipfs', 'daemon'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+			self.proc = subprocess.Popen(['ipfs', 'daemon'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 			retry = 0
 			while retry > RETRIES:
 				# wait a second to let it start
 				time.sleep(TIMEOUT)
 				try:
-					api = connect()
+					self.api = connect()
 					break
 				except:
 					print('Timed out...')
