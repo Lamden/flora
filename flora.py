@@ -28,3 +28,25 @@ def push():
     # ipfs add
     # ipns route
     # return hash and address info
+
+
+def create_an_account():
+    #     place public key in db
+    raise Exception('TODO')
+
+def create_repo():
+    #     verify public key in db
+    #     hash = deploy xz compressed git repo to ipfs with developer pub key in metadata
+    #     insert repo_hash in db
+    raise Exception('TODO')
+
+def push_repo():
+    #     verify public key in db
+    #     get prev_repo_hash
+    #     new_repo_hash = deploy xz compressed git repo to ipfs with developer pub key in metadata
+    #     chain prev_repo_hash, new_repo_hash
+    #     insert new_repo_hash
+    #         where
+    #         pub_key=?
+    #         AND prev_repo_hash=?
+    raise Exception('TODO')
