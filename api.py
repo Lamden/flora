@@ -11,15 +11,26 @@ e = create_engine(DB_NAME)
 app = Flask(__name__)
 api = Api(app)
 
+def check_name(conn, name):
+	query = conn.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
+	if query != None:
+		return True
+	return False
+
 class NameRegistry(Resource):
 		def get(self):
 			name = request.form['name']
 			conn = e.connect()
 			#Perform query and return JSON data
-			query = conn.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
-			if query != None:
-				return True
-			return False
+			return check_name(conn, name)
+
+		def post(self):
+			name = request.form['name']
+			key = request.form['key']
+			conn = e.connect()
+			query = conn.execute('INSERT INTO names VALUES (?,?)', (name, key))
+
+			return check_name(conn, name)
 
 app = Flask(__name__)
 api = Api(app)
