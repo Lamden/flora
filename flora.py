@@ -1,52 +1,57 @@
+import sqlite3
 import click
-from ipfs import IPFS
+import subprocess
+import time
+import pickle
+import requests
+import rsa
+import os
 
-# where's the pickle?
-MASTER_DB_HASH = 0
+API_LOCATION = 'http://127.0.0.1:5000'
+KEY_LOCATION = '~/.flora'
+
+def check_name(name):
+	return requests.get('{}/names'.format(API_LOCATION), data = {'name':name}).json()
 
 @click.group()
 def cli():
-	"""This script showcases different terminal UI helpers in Click."""
-	print(IPFS)
-	print('howdy')
+	pass
+
+# registers a new username
+@cli.command()
+@click.argument('name')
+def register(name):
+	# hit api to see if name is already registered
+	if check_name(name) == True:
+		print('already registered')
+	else:
+		# generate new keypair
+		(pub, priv) = rsa.newkeys(512)
+
+		if os.path.exists(KEY_LOCATION) == False:
+			os.makedirs(os.path.dirname(KEY_LOCATION))
+
+		# save to disk
+		with open('{}/.key'.format(KEY_LOCATION), 'wb') as f:
+		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
+
+		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'key' : pub})
+		print(r.json())
 
 @cli.command()
+@click.argument('name')
+def check(name):
+	# hit api to see if name is already registered
+	if check_name(name) == True:
+		print('already registered')
+	else:
+		print('available to register')
+
+@cli.command()
+@click.argument('package')
 def install():
-	click.echo('package')
-	#if proc != None:
-	#IPFS.kill()
+	print(package)
 
 @cli.command()
-def push():
-    click.echo('push')
-    # TODO
-    # xz --robot --info-memory
-    # XZ_DEFAULTS
-    # XZ_OPT
-    # XZ_OPT=${XZ_OPT-"-7e"}
-    # xz -cvfJ -7 git.repo.tar.xz this_git_repo
-    # ipfs add
-    # ipns route
-    # return hash and address info
-
-
-def create_an_account():
-    #     place public key in db
-    raise Exception('TODO')
-
-def create_repo():
-    #     verify public key in db
-    #     hash = deploy xz compressed git repo to ipfs with developer pub key in metadata
-    #     insert repo_hash in db
-    raise Exception('TODO')
-
-def push_repo():
-    #     verify public key in db
-    #     get prev_repo_hash
-    #     new_repo_hash = deploy xz compressed git repo to ipfs with developer pub key in metadata
-    #     chain prev_repo_hash, new_repo_hash
-    #     insert new_repo_hash
-    #         where
-    #         pub_key=?
-    #         AND prev_repo_hash=?
-    raise Exception('TODO')
+def upload():
+	pass
