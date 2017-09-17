@@ -36,7 +36,10 @@ def register(name):
 		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
 
 		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'key' : pub})
-		print(r.json())
+		if r.json() == True:
+			print('successfully registered')
+		else:
+			print('error registering name')
 
 @cli.command()
 @click.argument('name')
