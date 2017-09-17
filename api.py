@@ -4,13 +4,14 @@ from sqlalchemy import create_engine
 from json import dumps
 import os
 import re
+import click
+import rsa
+import string
+import random
 
 DB_NAME = 'sqlite:///test.db'
-
+KEY = None
 e = create_engine(DB_NAME)
-
-app = Flask(__name__)
-api = Api(app)
 
 def check_name(conn, name):
 	query = conn.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
@@ -20,6 +21,10 @@ def check_name(conn, name):
 
 def clean(s):
 	return re.sub('[^A-Za-z0-9]+', '', s)
+
+def random_string(length):
+    pool = string.ascii_letters + string.digits
+    return ''.join(random.choice(pool) for i in range(length))
 
 class NameRegistry(Resource):
 	def get(self):
@@ -32,10 +37,10 @@ class NameRegistry(Resource):
 		name = request.form['name']
 		key = request.form['key']
 		conn = e.connect()
-		query = conn.execute('INSERT INTO names VALUES (?,?)', (name, key))
+		query = conn.execute('INSERT INTO names VALUES (?,?,?)', (name, key, ''))
 		return check_name(conn, name)
 
-# GET does not require auth and just downloads packages
+# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL thing.
 # POST required last secret. Secret is then flushed so auth is required again before POSTing again
 class PackageRegistry(Resource):
 	def get(self):
@@ -51,8 +56,11 @@ class PackageRegistry(Resource):
 # server key supplied in memory at each start up
 class Authorization(Resource):
 	def get(self):
-		#TODO
-		pass
+		name = request.form['name']
+		secret = random_string(128)
+		conn = e.connect()
+		query = conn.execute("UPDATE names SET secret='{}' WHERE name='{}'".format(secret, name))
+		return secret
 
 app = Flask(__name__)
 api = Api(app)
@@ -62,4 +70,7 @@ api.add_resource(PackageRegistry, '/packages')
 api.add_resource(Authorization, '/auth')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+	(pub, priv) = rsa.newkeys(512)
+	KEY = (pub, priv)
+	print(KEY)
+	app.run(debug=True)

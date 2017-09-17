@@ -51,6 +51,13 @@ def check(name):
 		print('available to register')
 
 @cli.command()
+@click.argument('name')
+def authorize(name):
+	# hit api to see if name is already registered
+	r = requests.get('{}/auth'.format(API_LOCATION), data = {'name' : name})
+	print(r.json())
+
+@cli.command()
 @click.argument('package')
 def install():
 	print(package)
