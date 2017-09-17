@@ -7,8 +7,11 @@ setup(
     include_package_data=True,
     packages=find_packages(),
     install_requires=[
-         'ipfsapi',
-         'click'
+         'click',
+         'requests',
+         'pytest',
+         'flask',
+         'flask_restful'
     ],
     entry_points='''
         [console_scripts]
