@@ -35,7 +35,7 @@ def register(name):
 		with open('{}/.key'.format(KEY_LOCATION), 'wb') as f:
 		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
 
-		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'key' : pub})
+		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'n' : pub.n, 'e' : pub.e})
 		if r.json() == True:
 			print('successfully registered')
 		else:
