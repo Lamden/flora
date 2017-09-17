@@ -5,6 +5,7 @@ import time
 import pickle
 import requests
 import rsa
+import os
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = '~/.flora'
@@ -27,8 +28,11 @@ def register(name):
 		# generate new keypair
 		(pub, priv) = rsa.newkeys(512)
 
+		if os.path.exists(KEY_LOCATION) == False:
+			os.makedirs(os.path.dirname(KEY_LOCATION))
+
 		# save to disk
-		with open(KEY_LOCATION, 'wb') as f:
+		with open('{}/.key'.format(KEY_LOCATION), 'wb') as f:
 		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
 
 		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'key' : pub})
