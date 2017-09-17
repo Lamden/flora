@@ -55,7 +55,11 @@ def check(name):
 def authorize(name):
 	# hit api to see if name is already registered
 	r = requests.get('{}/auth'.format(API_LOCATION), data = {'name' : name})
-	print(r.json())
+	
+	# request will return secret. decrypt and send info back to server
+	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
+	message = rsa.decrypt(eval(r.json()), priv)
+	print(message)
 
 @cli.command()
 @click.argument('package')
