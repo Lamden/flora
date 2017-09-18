@@ -23,7 +23,7 @@ def cli():
 def register(name):
 	# hit api to see if name is already registered
 	if check_name(name) == True:
-		print('already registered')
+		print('{} already registered.'.format(name))
 	else:
 		# generate new keypair
 		(pub, priv) = rsa.newkeys(512)
@@ -37,28 +37,29 @@ def register(name):
 
 		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'n' : pub.n, 'e' : pub.e})
 		if r.json() == True:
-			print('successfully registered')
+			print('Successfully registered new name: {}'.format(name))
 		else:
-			print('error registering name')
+			print('Error registering name: {}'.format(name))
 
 @cli.command()
 @click.argument('name')
 def check(name):
 	# hit api to see if name is already registered
 	if check_name(name) == True:
-		print('already registered')
+		print('{} already registered.'.format(name))
 	else:
-		print('available to register')
+		print('{} is available to register.'.format(name))
 
 @cli.command()
 @click.argument('name')
 def authorize(name):
-	# hit api to see if name is already registered
+	# hit api for secret
 	r = requests.get('{}/auth'.format(API_LOCATION), data = {'name' : name})
 	
 	# request will return secret. decrypt and send info back to server
 	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
 	message = rsa.decrypt(eval(r.json()), priv)
+	print(r.json())
 	print(message)
 
 @cli.command()
@@ -67,5 +68,16 @@ def install():
 	print(package)
 
 @cli.command()
-def upload():
-	pass
+@click.argument('package_name')
+def upload(package_name):
+	split_string = package_name.split('/')
+	if len(split_string) != 2:
+		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
+		return
+
+	owner = split_string[0]
+	package = split_string[1]
+	
+	# to replace authorize because you don't need it
+	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	print(r.json())

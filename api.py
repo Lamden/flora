@@ -19,6 +19,12 @@ def check_name(conn, name):
 		return True
 	return False
 
+def check_package(conn, owner, package):
+	query = conn.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
+	if query != None:
+		return True
+	return False
+
 def clean(s):
 	return re.sub('[^A-Za-z0-9]+', '', s)
 
@@ -45,8 +51,17 @@ class NameRegistry(Resource):
 # POST required last secret. Secret is then flushed so auth is required again before POSTing again
 class PackageRegistry(Resource):
 	def get(self):
-		#TODO
-		pass
+		# checks if the user can create a new package entry
+		# if so, returns a new secret
+		# user then must post the signed package to this endpoint
+		owner = request.form['owner']
+		package = request.form['package']
+
+		conn = engine.connect()
+		if not check_package(conn, owner, package):
+			return 'yay'
+		else:
+			return 'error code'
 
 	def post(self):
 		#TODO

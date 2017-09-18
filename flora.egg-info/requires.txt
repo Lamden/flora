@@ -1,2 +1,5 @@
 click
 requests
+pytest
+flask
+flask_restful
