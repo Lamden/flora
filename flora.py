@@ -80,4 +80,10 @@ def upload(package_name):
 	
 	# to replace authorize because you don't need it
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
-	print(r.json())
+	if r.json()['status'] == 'success':
+		secret = r.json()['data']
+		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
+		message = rsa.decrypt(eval(secret), priv)
+	else:
+		print('no')
+	#print(r.json()['data'])

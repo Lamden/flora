@@ -13,6 +13,20 @@ DB_NAME = 'sqlite:///test.db'
 KEY = None
 engine = create_engine(DB_NAME)
 
+def error_payload(message):
+	return {
+		"status": "error",
+		"data": None,
+		"message": message
+	}
+
+def success_payload(data, message):
+	return {
+		"status": "success",
+		"data": data,
+		"message": message
+	}
+
 def check_name(conn, name):
 	query = conn.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
 	if query != None:
@@ -59,9 +73,27 @@ class PackageRegistry(Resource):
 
 		conn = engine.connect()
 		if not check_package(conn, owner, package):
-			return 'yay'
+			# try to pull the users public key
+			conn = engine.connect()
+			query = conn.execute("SELECT n, e FROM names WHERE name='{}'".format(owner)).fetchone()
+
+			# in doing so, check if the user exists
+			if query == None:
+				return error_payload('Owner does not exist.')
+
+			# construct the user's public key
+			user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
+			
+			# create and store a new secret
+			secret = random_string(53)
+			query = conn.execute("UPDATE names SET secret='{}' WHERE name='{}'".format(secret, owner))
+			
+			# sign and send secret
+			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
+			return success_payload(str(user_signed_secret), 'Package available to register.')
+			
 		else:
-			return 'error code'
+			return error_payload('Package already exists.')
 
 	def post(self):
 		#TODO
