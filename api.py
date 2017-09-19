@@ -8,6 +8,7 @@ import click
 import rsa
 import string
 import random
+from simplecrypt import encrypt, decrypt
 
 DB_NAME = 'sqlite:///test.db'
 KEY = None
@@ -96,8 +97,18 @@ class PackageRegistry(Resource):
 			return error_payload('Package already exists.')
 
 	def post(self):
-		#TODO
-		pass
+		owner = request.form['owner']
+		package = request.form['package']
+		data = request.form['data']
+		print(data)
+		# get the secret from the db
+		conn = engine.connect()
+		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
+		print(query[0])
+
+		plaintext = decrypt(query[0].encode('utf8'), eval(data))
+		print(plaintext)
+		return plaintext
 
 # GET gets a new secret signed by public key for user
 # secret signed and stored in server with server key (PGP?)

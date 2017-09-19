@@ -6,6 +6,7 @@ import pickle
 import requests
 import rsa
 import os
+from simplecrypt import encrypt, decrypt
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
@@ -80,10 +81,25 @@ def upload(package_name):
 	
 	# to replace authorize because you don't need it
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+
+	# check to see if there was a success (the package is available)
 	if r.json()['status'] == 'success':
+
+		# if so, decrypt the secret
 		secret = r.json()['data']
 		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
-		message = rsa.decrypt(eval(secret), priv)
+		cipher = rsa.decrypt(eval(secret), priv)
+
+		# continue uploading
+		user_input = input('Test data: ')
+
+		# sign data
+		message = encrypt(cipher, user_input.encode('utf8'))
+
+		# post data
+		data = message
+		r = requests.post('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
+
+		print(r.json())
 	else:
 		print('no')
-	#print(r.json()['data'])
