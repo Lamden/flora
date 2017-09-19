@@ -11,7 +11,10 @@ setup(
          'requests',
          'pytest',
          'flask',
-         'flask_restful'
+         'flask_restful',
+         'rsa',
+         'simplecrypt',
+         'pycrypto'
     ],
     entry_points='''
         [console_scripts]
