@@ -87,8 +87,11 @@ class PackageRegistry(Resource):
 			
 			# create and store a new secret
 			secret = random_string(53)
-			query = conn.execute("UPDATE names SET secret='{}' WHERE name='{}'".format(secret, owner))
-			
+
+			# sign with server public key in memory and decrypt later with the private key
+			server_signed_secret = rsa.encrypt(secret.encode('utf8'), KEY[0])
+			query = conn.execute("UPDATE names SET secret=:secret WHERE name=:name", {'secret' : str(server_signed_secret), 'name' : owner})
+
 			# sign and send secret
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
 			return success_payload(str(user_signed_secret), 'Package available to register.')
@@ -100,15 +103,15 @@ class PackageRegistry(Resource):
 		owner = request.form['owner']
 		package = request.form['package']
 		data = request.form['data']
-		print(data)
 		# get the secret from the db
 		conn = engine.connect()
 		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
-		print(query[0])
+		if query == None:
+				return error_payload('Secret not found.')
 
-		plaintext = decrypt(query[0].encode('utf8'), eval(data))
-		print(plaintext)
-		return plaintext
+		secret = rsa.decrypt(eval(query[0]), KEY[1])
+		message = decrypt(secret, eval(data))
+		return str(message)
 
 # GET gets a new secret signed by public key for user
 # secret signed and stored in server with server key (PGP?)
@@ -145,5 +148,4 @@ api.add_resource(Authorization, '/auth')
 if __name__ == '__main__':
 	(pub, priv) = rsa.newkeys(512)
 	KEY = (pub, priv)
-	print(KEY)
 	app.run(debug=True)
