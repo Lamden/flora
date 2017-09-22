@@ -124,7 +124,7 @@ class PackageRegistry(Resource):
 		# otherwise, commit it
 		raw_data = decrypt(query[0].encode('utf8'), eval(data))
 		print(raw_data)
-		package_data = json.loads(str(raw_data))
+		package_data = json.loads(raw_data.decode("utf-8"))
 		print(package_data)
 		return package_data
 
