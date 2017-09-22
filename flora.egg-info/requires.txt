@@ -3,3 +3,6 @@ requests
 pytest
 flask
 flask_restful
+rsa
+simple-crypt
+pycrypto

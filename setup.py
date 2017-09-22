@@ -13,8 +13,10 @@ setup(
          'flask',
          'flask_restful',
          'rsa',
-         'simplecrypt',
-         'pycrypto'
+         'simple-crypt',
+         'pycrypto',
+         'Jinja2',
+         'py-solc'
     ],
     entry_points='''
         [console_scripts]

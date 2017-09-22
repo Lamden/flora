@@ -9,10 +9,21 @@ import rsa
 import string
 import random
 from simplecrypt import encrypt, decrypt
+#import ipfsapi
+
+#api = ipfsapi.connect('127.0.0.1', 5001)
+
+#HEAD_HASH = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n'
 
 DB_NAME = 'sqlite:///test.db'
 KEY = None
 engine = create_engine(DB_NAME)
+
+
+# potential abstraction of engine to support sql, ipfs, yada yada
+class Engine:
+	def __init__(self):
+		pass
 
 def error_payload(message):
 	return {
@@ -106,9 +117,13 @@ class PackageRegistry(Resource):
 		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
 		print(query[0])
 
-		plaintext = decrypt(query[0].encode('utf8'), eval(data))
-		print(plaintext)
-		return plaintext
+		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
+		# compilation of this code should return true
+		# if there are errors, don't commit it to the db
+		# otherwise, commit it
+		(tsol, example) = decrypt(query[0].encode('utf8'), eval(data))
+		print(package_data)
+		return package_data
 
 # GET gets a new secret signed by public key for user
 # secret signed and stored in server with server key (PGP?)
