@@ -179,6 +179,6 @@ def upload(package_name):
 		print('Uploading to Flora under {}/{}...'.format(owner, package))
 		r = requests.post('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
 
-		print(eval(r.json()))
+		print(r.json())
 	else:
 		print(r.json()['message'])

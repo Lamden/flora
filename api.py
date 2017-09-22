@@ -12,6 +12,42 @@ import pickle
 from simplecrypt import encrypt, decrypt
 #import ipfsapi
 
+# copied directly from saffron contracts.py and slightly modified
+# should be abstracted into its own tsol library eventually
+def get_template_variables(fo):
+	nodes = Environment().parse(fo.read()).body[0].nodes
+	var_names = [x.name for x in nodes if type(x) is Name]
+	return var_names
+
+def render_contract(payload):
+	sol_contract = payload.pop('sol')
+	template_variables = get_template_variables(BytesIO(sol_contract.encode()))
+	assert 'contract_name' in payload
+	name = payload.get('contract_name')
+	assert all(x in template_variables for x in list(payload.keys()))
+	template = Environment().from_string(sol_contract)
+	return name, template.render(payload)
+
+def load_tsol_file(file=None, payload=None):
+	assert file and payload, 'No file or payload provided.'
+	payload['sol'] = file.read()
+	name, rendered_contract = render_contract(payload=payload)
+	return name, rendered_contract
+
+input_json = '''{"language": "Solidity", "sources": {
+				"{{name}}": {
+					"content": {{sol}}
+				}
+			},
+			"settings": {
+				"outputSelection": {
+					"*": {
+						"*": [ "metadata", "evm.bytecode", "abi", "evm.bytecode.opcodes", "evm.gasEstimates", "evm.methodIdentifiers" ]
+					}
+				}
+			}
+		}'''
+
 #api = ipfsapi.connect('127.0.0.1', 5001)
 
 #HEAD_HASH = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n'
@@ -115,11 +151,10 @@ class PackageRegistry(Resource):
 		owner = request.form['owner']
 		package = request.form['package']
 		data = request.form['data']
-		print(data)
+
 		# get the secret from the db
 		conn = engine.connect()
 		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
-		print(query[0])
 
 		secret = rsa.decrypt(eval(query[0]), KEY[1])
 
@@ -128,45 +163,24 @@ class PackageRegistry(Resource):
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
 		raw_data = decrypt(secret, eval(data))
-		print(raw_data)
 		package_data = json.loads(raw_data.decode('utf8'))
-		print(package_data)
+		
+		# assert that the code compiles with the provided example
+		solidity = load_tsol_file(code, example)
+		compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
+	
+		# this will throw an assertation error (thanks piper!) if the code doesn't compile
+		compile_standard(json.loads(compilation_payload))
+		
 		return package_data
-
-# GET gets a new secret signed by public key for user
-# secret signed and stored in server with server key (PGP?)
-# server key supplied in memory at each start up
-class Authorization(Resource):
-	def get(self):
-		name = request.form['name']
-		# try to pull the users public key
-		conn = engine.connect()
-		query = conn.execute("SELECT n, e FROM names WHERE name='{}'".format(name)).fetchone()
-
-		# in doing so, check if the user exists
-		if query == None:
-			return False
-
-		# construct the user's public key
-		user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
-		
-		# create and store a new secret
-		secret = random_string(53)
-		query = conn.execute("UPDATE names SET secret='{}' WHERE name='{}'".format(secret, name))
-		
-		# sign and send secret
-		user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
-		return str(user_signed_secret)
 
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
 api.add_resource(PackageRegistry, '/packages')
-api.add_resource(Authorization, '/auth')
 
 if __name__ == '__main__':
 	(pub, priv) = rsa.newkeys(512)
 	KEY = (pub, priv)
-	print(KEY)
 	app.run(debug=True)
