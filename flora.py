@@ -123,13 +123,13 @@ def upload(package_name):
 	project_folder = os.getcwd() if project_folder == '' else project_folder
 
 	# try to find the files
-	code = glob.glob(os.path.join(project_folder, '*.tsol'))
+	code_path = glob.glob(os.path.join(project_folder, '*.tsol'))
 	example = glob.glob(os.path.join(project_folder, '*.json'))
 
-	assert len(code) > 0 and len(example) > 0, 'Could not find *.tsol and *.json files in provided directory.'
+	assert len(code_path) > 0 and len(example) > 0, 'Could not find *.tsol and *.json files in provided directory.'
 
 	# pop off the first file name and turn the code into a file object
-	code = open(code[0])
+	code = open(code_path[0])
 
 	# turn the example into a dict
 	with open(example[0]) as e:    
@@ -141,6 +141,13 @@ def upload(package_name):
 	
 	# this will throw an assertation error (thanks piper!) if the code doesn't compile
 	compile_standard(json.loads(compilation_payload))
+
+	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
+
+	payload = {
+		'tsol' : open(code_path[0]).read(),
+		'example' : example
+	}
 
 	split_string = package_name.split('/')
 	if len(split_string) != 2:
@@ -161,17 +168,17 @@ def upload(package_name):
 		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
 		cipher = rsa.decrypt(eval(secret), priv)
 
-		# continue uploading
-		message = (code.read(), example)
-		user_input = input('Test data: ')
+		print('Encrypting package...')
 
 		# sign data
-		message = encrypt(cipher, user_input.encode('utf8'))
+		payload = json.dumps(payload)
+		message = encrypt(cipher, payload)
 
 		# post data
 		data = message
+		print('Uploading to Flora under {}/{}...'.format(owner, package))
 		r = requests.post('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
 
 		print(r.json())
 	else:
-		print('no')
+		print(r.json()['message'])

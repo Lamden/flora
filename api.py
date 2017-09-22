@@ -1,13 +1,14 @@
 from flask import Flask, request
 from flask_restful import Resource, Api
 from sqlalchemy import create_engine
-from json import dumps
+import json
 import os
 import re
 import click
 import rsa
 import string
 import random
+import pickle
 from simplecrypt import encrypt, decrypt
 #import ipfsapi
 
@@ -121,7 +122,9 @@ class PackageRegistry(Resource):
 		# compilation of this code should return true
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
-		(tsol, example) = decrypt(query[0].encode('utf8'), eval(data))
+		raw_data = decrypt(query[0].encode('utf8'), eval(data))
+		print(raw_data)
+		package_data = json.loads(str(raw_data))
 		print(package_data)
 		return package_data
 
