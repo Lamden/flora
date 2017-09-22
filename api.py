@@ -97,11 +97,14 @@ class PackageRegistry(Resource):
 			# construct the user's public key
 			user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
 			
-			# create and store a new secret
+			# create a new secret
 			secret = random_string(53)
-			query = conn.execute("UPDATE names SET secret='{}' WHERE name='{}'".format(secret, owner))
+
+			# sign and store it in the db so no plain text instance exists in the universe
+			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
+			query = conn.execute("UPDATE names SET secret=? WHERE name=?", (server_signed_secret, owner))
 			
-			# sign and send secret
+			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
 			return success_payload(str(user_signed_secret), 'Package available to register.')
 			
@@ -118,13 +121,15 @@ class PackageRegistry(Resource):
 		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
 		print(query[0])
 
+		secret = rsa.decrypt(eval(query[0]), KEY[1])
+
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
 		# compilation of this code should return true
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
-		raw_data = decrypt(query[0].encode('utf8'), eval(data))
+		raw_data = decrypt(secret, eval(data))
 		print(raw_data)
-		package_data = json.loads(raw_data.decode("utf-8"))
+		package_data = json.loads(raw_data.decode('utf8'))
 		print(package_data)
 		return package_data
 
