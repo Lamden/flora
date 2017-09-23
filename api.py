@@ -12,6 +12,12 @@ import pickle
 from simplecrypt import encrypt, decrypt
 #import ipfsapi
 
+# tsol libs
+from solc import compile_source, compile_standard
+from jinja2 import Environment
+from jinja2.nodes import Name
+from io import BytesIO
+
 # copied directly from saffron contracts.py and slightly modified
 # should be abstracted into its own tsol library eventually
 def get_template_variables(fo):
@@ -157,30 +163,64 @@ class PackageRegistry(Resource):
 		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
 
 		secret = rsa.decrypt(eval(query[0]), KEY[1])
-
+		print(secret)
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
 		# compilation of this code should return true
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
 		raw_data = decrypt(secret, eval(data))
 		package_data = json.loads(raw_data.decode('utf8'))
-		
+		print(data)
+		'''
+		payload = {
+			'tsol' : open(code_path[0]).read(),
+			'example' : example
+		}
+		'''
+
 		# assert that the code compiles with the provided example
-		solidity = load_tsol_file(code, example)
+		payload = package_data['example']
+		payload['sol'] = package_data['tsol']
+		solidity = render_contract(payload)
+
 		compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
 	
 		# this will throw an assertation error (thanks piper!) if the code doesn't compile
-		compile_standard(json.loads(compilation_payload))
+		try:
+			compile_standard(json.loads(compilation_payload))
+		except:
+			return error_payload('Provided payload contains compilation errors.')
+		print(package_data['tsol'])
+		query = conn.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, pickle.dumps(package_data['tsol']), pickle.dumps(package_data['example'])))
 		
-		return package_data
+		return success_payload(None, 'Package successfully uploaded.')
+
+class Packages(Resource):
+	def get(self):
+		owner = request.form['owner']
+		package = request.form['package']
+
+		conn = engine.connect()
+		query = conn.execute("SELECT template, example FROM packages WHERE owner=? AND package=?", (owner, package)).fetchone()
+
+		if query == None:
+			return error_payload('Could not find package.')
+
+		data = {
+			'template' : pickle.loads(query[0]),
+			'example' : pickle.loads(query[1])
+		}
+		return success_payload(data, 'Package successfully pulled.')
 
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
-api.add_resource(PackageRegistry, '/packages')
+api.add_resource(PackageRegistry, '/package_registry')
+api.add_resource(Packages, '/packages')
 
 if __name__ == '__main__':
 	(pub, priv) = rsa.newkeys(512)
 	KEY = (pub, priv)
+	print(KEY)
 	app.run(debug=True)

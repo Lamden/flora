@@ -20,6 +20,12 @@ from io import BytesIO
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 
+def check_package_name_format(name):
+	split_string = name.split('/')
+	if len(split_string) != 2:
+		return False
+	return split_string
+
 def check_name(name):
 	return requests.get('{}/names'.format(API_LOCATION), data = {'name':name}).json()
 
@@ -97,25 +103,41 @@ def check(name):
 		print('{} is available to register.'.format(name))
 
 @cli.command()
-@click.argument('name')
-def authorize(name):
-	# hit api for secret
-	r = requests.get('{}/auth'.format(API_LOCATION), data = {'name' : name})
-	
-	# request will return secret. decrypt and send info back to server
-	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
-	message = rsa.decrypt(eval(r.json()), priv)
-	print(r.json())
-	print(message)
+@click.argument('package_name')
+def install(package_name):
+	split_string = check_package_name_format(package_name)
+	if split_string == False:
+		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
+		return
+	owner = split_string[0]
+	package = split_string[1]
+	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	print(r.json()['data']['template'])
+	print(r.json()['data']['example'])
+	# ask where to save files
+	project_folder = ''
+	project_folder = input('Directory to save package (enter for current working directory):')
+	project_folder = os.getcwd() if project_folder == '' else project_folder
 
-@cli.command()
-@click.argument('package')
-def install():
-	print(package)
+	package_dir = os.path.join(project_folder, package_name)
+	os.makedirs(package_dir)
+
+	with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
+		f.write(r.json()['data']['template'])
+
+	with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
+		f.write(str(r.json()['data']['example']))
+
+	print('Package successfully pulled!')
 
 @cli.command()
 @click.argument('package_name')
 def upload(package_name):
+	# check if package name valid
+	split_string = check_package_name_format(package_name)
+	if split_string == False:
+		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
+		return
 	
 	# ask where the project directory
 	project_folder = ''
@@ -149,16 +171,11 @@ def upload(package_name):
 		'example' : example
 	}
 
-	split_string = package_name.split('/')
-	if len(split_string) != 2:
-		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
-		return
-
 	owner = split_string[0]
 	package = split_string[1]
 	
 	# to replace authorize because you don't need it
-	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
 	# check to see if there was a success (the package is available)
 	if r.json()['status'] == 'success':
@@ -177,8 +194,8 @@ def upload(package_name):
 		# post data
 		data = message
 		print('Uploading to Flora under {}/{}...'.format(owner, package))
-		r = requests.post('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
+		r = requests.post('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
 
-		print(r.json())
+		print(r.json()['message'])
 	else:
 		print(r.json()['message'])
