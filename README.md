@@ -1,19 +1,28 @@
 # Flora
-### Smart Contract Package Mangager on IPFS
+### Smart Contract Package Manager on IPFS
 
 
 ```
-nvm install 8.4.0
-nvm use 8.4.0
-npm install
-npm run flora
-upload example-contract/fixed_supply_token.tsol --example example-contract/example.json --name hmmmm
+git clone https://github.com/Lamden/flora.git
+python setup.py develop
+flora --help
 ```
 
+Flora is a simple package manager (for now) that allows users to register names, upload, and download packages in an encrypted manner. The current implementation uses SQL for demo purposes. This is not production ready.
 
-Flora is how you install smart contracts on your Hadron chain instances. It's as simple as running `flora install erc20` inside of your project directory. Smart contracts are stored on IPFS, so they are distributed around the world. Uploading your own is super easy as well. Just run ```flora upload my-package.tsol --name awesome-package --example example-payload.json```.
+Users must register a name on Flora before uploading their packages with ```flora register <username>.``` Once a name is registered, the user is given an RSA key. The public key is stored on Flora to sign messages, and the private key is stored locally to decrypt them. Users can check is a name is available before registering with ```flora check <username>```.
 
-Smart contracts are stored in .tsol files instead of .sol files. This is because smart contract packages are made to be customizable. A .tsol file uses {{handlebars}} to denote variables that can be adjusted. Here's an example:
+After registering a username, packages can be uploaded. Instead of storing authentication credentials insecure plaintext methods seen in other package managers (like [PiPy](https://packaging.python.org/guides/migrating-to-pypi-org/#uploading])), Flora uses signed secrets to verify identity. When a user runs ```flora upload <username>/<package>```, given the package does not already exist, the server will generate a random secret and sign it with the stored public key for that user. That secret is sent back to the user as an authentication puzzle.
+
+The server itself has an RSA key that it uses that is generated at runtime and never stored on hard disk. The server signs its own secret with that ephemeral key to prevent man-in-the-middle attacks (see [here](https://isis.poly.edu/~jcappos/papers/cappos_pmsec_tr08-02.pdf])).
+
+The user decrypts the secret with its locally stored private key and then signs the package that it wants to upload with the newly solved secret. The secret now serves as a symmetrical key of proof. When the package is uploaded, it is encrypted. The server uses its private key to decode the secret that was stored on disk and then uses the solved secret to decrypt the payload that was sent by the user. If the payload is valid Solidity code and compiles without error, we can assume that the user's identity is true. This prevents certain attack vectors of other non-secure package managers.
+
+For developers who just want to pull down code, using the command ```flora install <username>/<package>``` is sufficient. This will pull the package down and store it locally on their computer. Integration with Saffron to deploy these packages directly to chains is something to do.
+
+Flora uses Templated Solidity which allows for metavariable assignment in the case that developers want to deploy multiple instances of a similar contract with only slight variable differences, or a user wants to provide a complex package and expose only certain variables for tuning so that installation of highly complex smart contracts is easy.
+
+Templated Solidity looks like this:
 
 ```
 pragma solidity ^{{solidity_version}};
@@ -30,7 +39,7 @@ contract {{contract_name}} {
     
 ```
 
-This is an ERC20 token contract that can be modified on the fly and reused as an asset factory. When uploading to Flora, you have to provide a payload that compiles successfully. An example of this looks like:
+And includes an example JSON payload to complete it that looks like this:
 
 ```
 {
@@ -42,8 +51,13 @@ This is an ERC20 token contract that can be modified on the fly and reused as an
 }
 ```
 
-You save the .tsol and example payload seperately, and then upload them together. If they compile successfully, and the name you choose is globally unique, it will be on IPFS for others to download across the world.
+It's required to upload a Templated Solidity file with an example payload to Flora so that abstraction can occur later on. If there are no metavariables in a smart contract, the Templated Solidity can simply be vanilla Solidity with a blank example payload, as Templated Solidity is a superset of Solidity.
 
-You can deploy .tsol files with the Hadron Wrapper CLI tool.
-
-For now, Flora is simply a document store. In the future, it will support multiple smart contract languages for different blockchain technologies, usernames, dependencies, and more.
+### TODO
+Replace SQL driver with IPFS driver
+Integrate with Saffron
+Prepare a demo
+Abstract classes and database structure to support potentially infinite smart contract languages
+Solve DDOS and other public spamming attack vectors
+Host a public instance
+Other things that are on the backburner...
