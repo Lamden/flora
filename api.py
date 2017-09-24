@@ -23,27 +23,27 @@ DB_NAME = 'sqlite:///test.db'
 # potential abstraction of engine to support sql, ipfs, yada yada
 class Engine:
 	def __init__(self, info):
-		pass
+		raise NotImplementedError()
 	def exists(self, query):
-		pass
+		raise NotImplementedError()
 	def check_name(self, name):
-		pass
+		raise NotImplementedError()
 	def add_name(self, name, n, e):
-		pass
+		raise NotImplementedError()
 	def get_package(self, owner, package):
-		pass
+		raise NotImplementedError()
 	def check_package(self, owner, package):
-		pass
+		raise NotImplementedError()
 	def get_key(self, name):
-		pass
+		raise NotImplementedError()
 	def set_secret(self, name, secret):
-		pass
+		raise NotImplementedError()
 	def get_secret(self, name):
-		pass
+		raise NotImplementedError()
 	def add_package(self, owner, package, template, example):
-		pass
+		raise NotImplementedError()
 
-class SQL:
+class SQL(Engine):
 	def __init__(self, info):
 		self.engine = create_engine(info)
 		self.connection = self.engine.connect()
