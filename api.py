@@ -20,21 +20,75 @@ from io import BytesIO
 
 DB_NAME = 'sqlite:///test.db'
 
+# potential abstraction of engine to support sql, ipfs, yada yada
+class Engine:
+	def __init__(self, info):
+		pass
+	def exists(self, query):
+		pass
+	def check_name(self, name):
+		pass
+	def add_name(self, name, n, e):
+		pass
+	def get_package(self, owner, package):
+		pass
+	def check_package(self, owner, package):
+		pass
+	def get_key(self, name):
+		pass
+	def set_secret(self, name, secret):
+		pass
+	def get_secret(self, name):
+		pass
+	def add_package(self, owner, package, template, example):
+		pass
+
 class SQL:
-	def __init__(self, engine):
-		self.engine = engine
+	def __init__(self, info):
+		self.engine = create_engine(info)
 		self.connection = self.engine.connect()
+
+	def exists(self, query):
+		if query == None:
+			return False
+		return True
 
 	def check_name(self, name):
 		query = self.connection.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
-		if query != None:
-			return True
-		return False
+		return exists(query)
 
 	def add_name(self, name, n, e):
 		query = self.connection.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
 		return self.check_name(name)
 
+	def get_package(self, owner, package):
+		query = self.connection.execute("SELECT template, example FROM packages WHERE owner=? AND package=?", (owner, package)).fetchone()
+
+		if query == None:
+			return False
+
+		return {
+			'template' : pickle.loads(query[0]),
+			'example' : pickle.loads(query[1])
+		}
+
+	def check_package(self, owner, package):
+		query = self.connection.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
+		return exists(query)
+
+	def get_key(self, name):
+		return self.connection.execute("SELECT n, e FROM names WHERE name='{}'".format(name)).fetchone()
+
+	def set_secret(self, name, secret):
+		self.connection.execute("UPDATE names SET secret=? WHERE name=?", (secret, name))
+		return exists(query)
+
+	def get_secret(self, name):
+		return self.connection("SELECT secret FROM names WHERE name='{}'".format(name)).fetchone()
+
+	def add_package(self, owner, package, template, example):
+		self.connection.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, template, example))
+		return self.check_package(owner, package)
 
 # copied directly from saffron contracts.py and slightly modified
 # should be abstracted into its own tsol library eventually
@@ -81,14 +135,6 @@ KEY = None
 
 IPFS_LOCATION = ''
 
-
-# potential abstraction of engine to support sql, ipfs, yada yada
-class Engine:
-	def __init__(self):
-		pass
-
-
-
 def error_payload(message):
 	return {
 		"status": "error",
@@ -103,12 +149,6 @@ def success_payload(data, message):
 		"message": message
 	}
 
-def check_package(conn, owner, package):
-	query = conn.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
-	if query != None:
-		return True
-	return False
-
 def clean(s):
 	return re.sub('[^A-Za-z0-9]+', '', s)
 
@@ -118,8 +158,7 @@ def random_string(length):
 
 class NameRegistry(Resource):
 	def get(self):
-		engine = create_engine(DB_NAME)
-		sql = SQL(engine)
+		sql = SQL(DB_NAME)
 
 		if sql.check_name(request.form['name']) == True:
 			return error_payload('Name already registered.')
@@ -127,8 +166,7 @@ class NameRegistry(Resource):
 			return success_payload(None, 'Name available to register.')
 
 	def post(self):
-		engine = create_engine(DB_NAME)
-		sql = SQL(engine)
+		sql = SQL(DB_NAME)
 
 		if sql.add_name(request.form['name'], request.form['n'], request.form['e']) == True:
 			return success_payload(None, 'Name successfully registered.')
@@ -142,14 +180,11 @@ class PackageRegistry(Resource):
 		# checks if the user can create a new package entry
 		# if so, returns a new secret
 		# user then must post the signed package to this endpoint
-		owner = request.form['owner']
-		package = request.form['package']
+		sql = SQL(DB_NAME)
 
-		conn = engine.connect()
-		if not check_package(conn, owner, package):
+		if not sql.check_package(request.form['owner'], request.form['package']):
 			# try to pull the users public key
-			conn = engine.connect()
-			query = conn.execute("SELECT n, e FROM names WHERE name='{}'".format(owner)).fetchone()
+			query = sql.get_key(request.form['owner'])
 
 			# in doing so, check if the user exists
 			if query == None:
@@ -163,7 +198,7 @@ class PackageRegistry(Resource):
 
 			# sign and store it in the db so no plain text instance exists in the universe
 			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
-			query = conn.execute("UPDATE names SET secret=? WHERE name=?", (server_signed_secret, owner))
+			query = sql.set_secret(owner, server_signed_secret)
 			
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
@@ -173,23 +208,20 @@ class PackageRegistry(Resource):
 			return error_payload('Package already exists.')
 
 	def post(self):
+		sql = SQL(DB_NAME)
+
 		owner = request.form['owner']
 		package = request.form['package']
 		data = request.form['data']
 
-		# get the secret from the db
-		conn = engine.connect()
-		query = conn.execute("SELECT secret FROM names WHERE name='{}'".format(owner)).fetchone()
+		secret = rsa.decrypt(eval(sql.get_secret(owner)[0]), KEY[1])
 
-		secret = rsa.decrypt(eval(query[0]), KEY[1])
-		print(secret)
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
 		# compilation of this code should return true
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
 		raw_data = decrypt(secret, eval(data))
 		package_data = json.loads(raw_data.decode('utf8'))
-		print(data)
 		'''
 		payload = {
 			'tsol' : open(code_path[0]).read(),
@@ -209,26 +241,23 @@ class PackageRegistry(Resource):
 			compile_standard(json.loads(compilation_payload))
 		except:
 			return error_payload('Provided payload contains compilation errors.')
-		print(package_data['tsol'])
-		query = conn.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, pickle.dumps(package_data['tsol']), pickle.dumps(package_data['example'])))
-		
-		return success_payload(None, 'Package successfully uploaded.')
+
+		template = pickle.dumps(package_data['tsol'])
+		example = pickle.dumps(package_data['example'])
+
+		if sql.add_package(owner, package, template, example) == True:
+			return success_payload(None, 'Package successfully uploaded.')
+		return error_payload('Problem uploading package. Try again.')
 
 class Packages(Resource):
 	def get(self):
-		owner = request.form['owner']
-		package = request.form['package']
+		sql = SQL(DB_NAME)
 
-		conn = engine.connect()
-		query = conn.execute("SELECT template, example FROM packages WHERE owner=? AND package=?", (owner, package)).fetchone()
+		data = sql.get_package(request.form['owner'], request.form['package'])
 
-		if query == None:
+		if data == None:
 			return error_payload('Could not find package.')
 
-		data = {
-			'template' : pickle.loads(query[0]),
-			'example' : pickle.loads(query[1])
-		}
 		return success_payload(data, 'Package successfully pulled.')
 
 app = Flask(__name__)
