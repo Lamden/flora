@@ -31,6 +31,11 @@ class SQL:
 			return True
 		return False
 
+	def add_name(self, name, n, e):
+		query = self.connection.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
+		return self.check_name(name)
+
+
 # copied directly from saffron contracts.py and slightly modified
 # should be abstracted into its own tsol library eventually
 def get_template_variables(fo):
@@ -98,12 +103,6 @@ def success_payload(data, message):
 		"message": message
 	}
 
-def check_name(conn, name):
-	query = conn.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
-	if query != None:
-		return True
-	return False
-
 def check_package(conn, owner, package):
 	query = conn.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
 	if query != None:
@@ -131,13 +130,7 @@ class NameRegistry(Resource):
 		engine = create_engine(DB_NAME)
 		sql = SQL(engine)
 
-		name = request.form['name']
-		n = request.form['n']
-		e = request.form['e']
-		conn = engine.connect()
-		query = conn.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
-
-		if sql.check_name(request.form['name']) == True:
+		if sql.add_name(request.form['name'], request.form['n'], request.form['e']) == True:
 			return success_payload(None, 'Name successfully registered.')
 		else:
 			return error_payload('Unavailable to register name.')
