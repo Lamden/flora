@@ -97,10 +97,7 @@ def register(name):
 @click.argument('name')
 def check(name):
 	# hit api to see if name is already registered
-	if check_name(name) == True:
-		print('{} already registered.'.format(name))
-	else:
-		print('{} is available to register.'.format(name))
+	print(check_name(name)['message'])
 
 @cli.command()
 @click.argument('package_name')

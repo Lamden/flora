@@ -10,13 +10,26 @@ import string
 import random
 import pickle
 from simplecrypt import encrypt, decrypt
-#import ipfsapi
+import ipfsapi
 
 # tsol libs
 from solc import compile_source, compile_standard
 from jinja2 import Environment
 from jinja2.nodes import Name
 from io import BytesIO
+
+DB_NAME = 'sqlite:///test.db'
+
+class SQL:
+	def __init__(self, engine):
+		self.engine = engine
+		self.connection = self.engine.connect()
+
+	def check_name(self, name):
+		query = self.connection.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
+		if query != None:
+			return True
+		return False
 
 # copied directly from saffron contracts.py and slightly modified
 # should be abstracted into its own tsol library eventually
@@ -58,15 +71,18 @@ input_json = '''{"language": "Solidity", "sources": {
 
 #HEAD_HASH = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n'
 
-DB_NAME = 'sqlite:///test.db'
+
 KEY = None
-engine = create_engine(DB_NAME)
+
+IPFS_LOCATION = ''
 
 
 # potential abstraction of engine to support sql, ipfs, yada yada
 class Engine:
 	def __init__(self):
 		pass
+
+
 
 def error_payload(message):
 	return {
@@ -103,10 +119,15 @@ def random_string(length):
 
 class NameRegistry(Resource):
 	def get(self):
+		engine = create_engine(DB_NAME)
+		sql = SQL(engine)
 		name = request.form['name']
-		conn = engine.connect()
 		#Perform query and return JSON data
-		return check_name(conn, name)
+		print('shit')
+		if sql.check_name(name) == True:
+			return error_payload('Name already registered.')
+		else:
+			return success_payload('Name available to register.')
 
 	def post(self):
 		name = request.form['name']

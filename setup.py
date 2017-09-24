@@ -16,7 +16,8 @@ setup(
          'simple-crypt',
          'pycrypto',
          'Jinja2',
-         'py-solc'
+         'py-solc',
+         'ipfsapi'
     ],
     entry_points='''
         [console_scripts]
