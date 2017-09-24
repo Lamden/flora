@@ -74,7 +74,7 @@ def cli():
 @click.argument('name')
 def register(name):
 	# hit api to see if name is already registered
-	if check_name(name) == True:
+	if check_name(name)['status'] == 'error':
 		print('{} already registered.'.format(name))
 	else:
 		# generate new keypair
@@ -88,7 +88,7 @@ def register(name):
 		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
 
 		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'n' : pub.n, 'e' : pub.e})
-		if r.json() == True:
+		if r.json()['status'] == 'success':
 			print('Successfully registered new name: {}'.format(name))
 		else:
 			print('Error registering name: {}'.format(name))

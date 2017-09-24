@@ -121,21 +121,26 @@ class NameRegistry(Resource):
 	def get(self):
 		engine = create_engine(DB_NAME)
 		sql = SQL(engine)
-		name = request.form['name']
-		#Perform query and return JSON data
-		print('shit')
-		if sql.check_name(name) == True:
+
+		if sql.check_name(request.form['name']) == True:
 			return error_payload('Name already registered.')
 		else:
-			return success_payload('Name available to register.')
+			return success_payload(None, 'Name available to register.')
 
 	def post(self):
+		engine = create_engine(DB_NAME)
+		sql = SQL(engine)
+
 		name = request.form['name']
 		n = request.form['n']
 		e = request.form['e']
 		conn = engine.connect()
 		query = conn.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
-		return check_name(conn, name)
+
+		if sql.check_name(request.form['name']) == True:
+			return success_payload(None, 'Name successfully registered.')
+		else:
+			return error_payload('Unavailable to register name.')
 
 # GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL thing.
 # POST required last secret. Secret is then flushed so auth is required again before POSTing again
