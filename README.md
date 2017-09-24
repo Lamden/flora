@@ -54,10 +54,17 @@ And includes an example JSON payload to complete it that looks like this:
 It's required to upload a Templated Solidity file with an example payload to Flora so that abstraction can occur later on. If there are no metavariables in a smart contract, the Templated Solidity can simply be vanilla Solidity with a blank example payload, as Templated Solidity is a superset of Solidity.
 
 ### TODO
+
 Replace SQL driver with IPFS driver
+
 Integrate with Saffron
+
 Prepare a demo
+
 Abstract classes and database structure to support potentially infinite smart contract languages
+
 Solve DDOS and other public spamming attack vectors
+
 Host a public instance
+
 Other things that are on the backburner...
