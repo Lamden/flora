@@ -22,7 +22,7 @@ DB_NAME = 'sqlite:///test.db'
 
 # potential abstraction of engine to support sql, ipfs, yada yada
 class Engine:
-	def __init__(self, info):
+	def __init__(self, *args):
 		raise NotImplementedError()
 	def exists(self, query):
 		raise NotImplementedError()
@@ -43,9 +43,37 @@ class Engine:
 	def add_package(self, owner, package, template, example):
 		raise NotImplementedError()
 
-class SQL(Engine):
-	def __init__(self, info):
-		self.engine = create_engine(info)
+class IPFS_Engine(Engine):
+	def __init__(self, *args):
+		# info = ('127.0.0.1', 5000)
+		# (IP add str, port int)
+		self.api = ipfsapi.connect(args[0], args[1])
+
+	def exists(self, query):
+		if query == None:
+			return False
+		return True
+
+	def check_name(self, name):
+		raise NotImplementedError()
+	def add_name(self, name, n, e):
+		raise NotImplementedError()
+	def get_package(self, owner, package):
+		raise NotImplementedError()
+	def check_package(self, owner, package):
+		raise NotImplementedError()
+	def get_key(self, name):
+		raise NotImplementedError()
+	def set_secret(self, name, secret):
+		raise NotImplementedError()
+	def get_secret(self, name):
+		raise NotImplementedError()
+	def add_package(self, owner, package, template, example):
+		raise NotImplementedError()
+
+class SQL_Engine(Engine):
+	def __init__(self, *args):
+		self.engine = create_engine(args[0])
 		self.connection = self.engine.connect()
 
 	def exists(self, query):
@@ -55,7 +83,7 @@ class SQL(Engine):
 
 	def check_name(self, name):
 		query = self.connection.execute("SELECT * FROM names WHERE name='{}'".format(name)).fetchone()
-		return exists(query)
+		return self.exists(query)
 
 	def add_name(self, name, n, e):
 		query = self.connection.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
@@ -74,14 +102,14 @@ class SQL(Engine):
 
 	def check_package(self, owner, package):
 		query = self.connection.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
-		return exists(query)
+		return self.exists(query)
 
 	def get_key(self, name):
 		return self.connection.execute("SELECT n, e FROM names WHERE name='{}'".format(name)).fetchone()
 
 	def set_secret(self, name, secret):
 		self.connection.execute("UPDATE names SET secret=? WHERE name=?", (secret, name))
-		return exists(query)
+		return self.exists(query)
 
 	def get_secret(self, name):
 		return self.connection("SELECT secret FROM names WHERE name='{}'".format(name)).fetchone()
@@ -128,8 +156,6 @@ input_json = '''{"language": "Solidity", "sources": {
 
 #api = ipfsapi.connect('127.0.0.1', 5001)
 
-#HEAD_HASH = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n'
-
 
 KEY = None
 
@@ -158,7 +184,7 @@ def random_string(length):
 
 class NameRegistry(Resource):
 	def get(self):
-		sql = SQL(DB_NAME)
+		sql = SQL_Engine(DB_NAME)
 
 		if sql.check_name(request.form['name']) == True:
 			return error_payload('Name already registered.')
@@ -166,21 +192,21 @@ class NameRegistry(Resource):
 			return success_payload(None, 'Name available to register.')
 
 	def post(self):
-		sql = SQL(DB_NAME)
+		sql = SQL_Engine(DB_NAME)
 
 		if sql.add_name(request.form['name'], request.form['n'], request.form['e']) == True:
 			return success_payload(None, 'Name successfully registered.')
 		else:
 			return error_payload('Unavailable to register name.')
 
-# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL thing.
+# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL_Engine thing.
 # POST required last secret. Secret is then flushed so auth is required again before POSTing again
 class PackageRegistry(Resource):
 	def get(self):
 		# checks if the user can create a new package entry
 		# if so, returns a new secret
 		# user then must post the signed package to this endpoint
-		sql = SQL(DB_NAME)
+		sql = SQL_Engine(DB_NAME)
 
 		if not sql.check_package(request.form['owner'], request.form['package']):
 			# try to pull the users public key
@@ -208,7 +234,7 @@ class PackageRegistry(Resource):
 			return error_payload('Package already exists.')
 
 	def post(self):
-		sql = SQL(DB_NAME)
+		sql = SQL_Engine(DB_NAME)
 
 		owner = request.form['owner']
 		package = request.form['package']
@@ -251,7 +277,7 @@ class PackageRegistry(Resource):
 
 class Packages(Resource):
 	def get(self):
-		sql = SQL(DB_NAME)
+		sql = SQL_Engine(DB_NAME)
 
 		data = sql.get_package(request.form['owner'], request.form['package'])
 
