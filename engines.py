@@ -36,9 +36,34 @@ class IPFS_Engine(Engine):
 		except:
 			raise Exception('Daemon not running')
 
-		self.add_dir(os.path.join(os.getcwd(), self.root_dir))
+		self.sync(os.path.join(os.getcwd(), self.root_dir))
 
-	def add_dir(self, path):
+	# helper funcs
+	def update_fs(self):
+		try:
+			self.sync(os.path.join(os.getcwd(), self.root_dir))
+			return True
+		except:
+			return False
+
+	def new_file(self, path, payload):
+		try:
+			with open(path, 'w') as f:
+				f.write(payload)
+			self.update_fs()
+			return True
+		except:
+			return False
+
+	def new_dir(self, path):
+		try:
+			os.makedirs(path)
+			self.update_fs()
+			return True
+		except:
+			return False
+
+	def sync(self, path):
 		try:
 			hashes = self.api.add(path, recursive=True)
 			end_hash = hashes[-1]
@@ -49,13 +74,20 @@ class IPFS_Engine(Engine):
 			# fails if nothing is in the directory
 			return False
 
-	def update_fs(self):
-		try:
-			self.add_dir(os.path.join(os.getcwd(), self.root_dir))
-			return True
-		except:
-			return False
+	def file_to_memory(self, path):
+		data = None
+		with open(path, 'r') as d:
+			data = d.read()
+		os.remove(path)
+		return data
 
+	def get_file(self, path):
+		self.api.get('{}/names/{}'.format(self.root_hash, name))
+		# stores in cwdir, so load the files into memory and delete them
+		secret = self.file_to_memory('{}/{}/secret'.format(os.getcwd(), name))
+		os.rmdir('{}/{}'.format(os.getcwd(), name))
+
+	# interface funcs
 	def exists(self, query):
 		if query == None:
 			return False
@@ -69,35 +101,19 @@ class IPFS_Engine(Engine):
 			return False
 
 	def add_name(self, name, n, e):
-		package_root = os.path.join(os.getcwd(), '{}/packages'.format(self.root_dir))
-		package_path = (os.path.join(package_root, name))
-		try:
-			os.makedirs(package_path)
-		except:
-			pass
 
-		name_root = os.path.join(os.getcwd(), '{}/names'.format(self.root_dir))
-		name_path = (os.path.join(name_root, name))
-		try:
-			os.makedirs(name_path)
-		except:
-			pass
+		# create new packages directory
+		self.new_dir('{}/packages/{}'.format(os.getcwd(), name))
+		
+		# create new names directory
+		self.new_dir('{}/names/{}'.format(os.getcwd(), name))
 
-		with open(os.path.join(name_path, 'n'), 'w') as n_file:
-			n_file.write(n)
+		# add public key files to names
+		self.new_file('{}/names/{}/n'.format(os.getcwd(), name), n)
+		self.new_file('{}/names/{}/e'.format(os.getcwd(), name), e)
 
-		with open(os.path.join(name_path, 'e'), 'w') as e_file:
-			e_file.write(e)
-
-		self.update_fs()
 		return self.check_name(name)
 
-	def file_to_memory(self, path):
-		data = None
-		with open(path, 'r') as d:
-			data = d.read()
-		os.remove(path)
-		return data
 
 	def get_package(self, owner, package):
 		# this will download locally or wherever the user is
@@ -141,17 +157,7 @@ class IPFS_Engine(Engine):
 	
 	def set_secret(self, name, secret):
 		if self.check_name(name):
-			try:
-				name_root = os.path.join(os.getcwd(), '{}/names'.format(self.root_dir))
-				name_path = (os.path.join(name_root, name))
-
-				with open(os.path.join(name_path, 'secret'), 'w') as secret_file:
-					secret_file.write(secret)
-
-				self.update_fs()
-				return True
-			except:
-				return False
+			self.new_file('{}/names/{}/secret'.format(os.getcwd(), name), secret)
 		return False
 	
 	def get_secret(self, name):
@@ -161,7 +167,6 @@ class IPFS_Engine(Engine):
 
 			# stores in cwdir, so load the files into memory and delete them
 			secret = self.file_to_memory('{}/{}/secret'.format(os.getcwd(), name))
-
 			os.rmdir('{}/{}'.format(os.getcwd(), name))
 
 			return secret
@@ -169,7 +174,12 @@ class IPFS_Engine(Engine):
 			return False
 	
 	def add_package(self, owner, package, template, example):
-		raise NotImplementedError()
+
+		self.new_dir('{}/packages/{}/{}'.format(os.getcwd(), owner, package))
+		self.new_file('{}/packages/{}/{}/template'.format(os.getcwd(), owner, package), template)
+		self.new_file('{}/packages/{}/{}/example'.format(os.getcwd(), owner, package), example)
+
+		return self.check_package(owner, package)
 
 class SQL_Engine(Engine):
 	def __init__(self, *args):
