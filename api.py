@@ -47,7 +47,20 @@ class IPFS_Engine(Engine):
 	def __init__(self, *args):
 		# info = ('127.0.0.1', 5000)
 		# (IP add str, port int)
-		self.api = ipfsapi.connect(args[0], args[1])
+		try:
+			self.api = ipfsapi.connect(args[0], args[1])
+			self.root_hash = args[2]
+			self.root_dir = args[3]
+		except:
+			raise Exception('Daemon not running')
+
+		if self.root_hash == None:
+			self.root_hash = self.add_dir(os.path.join(os.getcwd(), self.root_dir))
+
+	def add_dir(self, path):
+		hashes = self.api.add(path, recursive=True)
+		end_hash = hashes[-1]
+		return end_hash['Hash']
 
 	def exists(self, query):
 		if query == None:
@@ -55,9 +68,23 @@ class IPFS_Engine(Engine):
 		return True
 
 	def check_name(self, name):
-		raise NotImplementedError()
+		try:
+			query = self.api.get('{}/packages/{}'.format(self.root_hash, name))
+		except:
+			return False
+
 	def add_name(self, name, n, e):
-		raise NotImplementedError()
+		root = os.path.join(os.getcwd(), self.root_dir)
+		name_path = (os.path.join(root, name))
+		os.makedirs(name_path)
+		
+		with open(os.path.join(name_path, 'n'), w) as n_file:
+			n_file.write(n)
+
+		with open(os.path.join(name_path, 'e'), w) as e_file:
+			e_file.write(e)
+
+		# return if it worked or not
 	def get_package(self, owner, package):
 		raise NotImplementedError()
 	def check_package(self, owner, package):
