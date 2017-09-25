@@ -57,11 +57,15 @@ class IPFS_Engine(Engine):
 		self.add_dir(os.path.join(os.getcwd(), self.root_dir))
 
 	def add_dir(self, path):
-		hashes = self.api.add(path, recursive=True)
-		end_hash = hashes[-1]
-		self.root_hash = end_hash['Hash']
-		print(self.root_hash)
-		return end_hash['Hash']
+		try:
+			hashes = self.api.add(path, recursive=True)
+			end_hash = hashes[-1]
+			self.root_hash = end_hash['Hash']
+			print(self.root_hash)
+			return end_hash['Hash']
+		except:
+			# fails if nothing is in the directory
+			return False
 
 	def exists(self, query):
 		if query == None:
@@ -71,12 +75,20 @@ class IPFS_Engine(Engine):
 	def check_name(self, name):
 		try:
 			query = self.api.ls('{}/packages/{}'.format(self.root_hash, name))
+			return True
 		except:
 			return False
 
 	def add_name(self, name, n, e):
-		root = os.path.join(os.getcwd(), '{}/packages'.format(self.root_dir))
-		name_path = (os.path.join(root, name))
+		package_root = os.path.join(os.getcwd(), '{}/packages'.format(self.root_dir))
+		package_path = (os.path.join(package_root, name))
+		try:
+			os.makedirs(package_path)
+		except:
+			pass
+
+		name_root = os.path.join(os.getcwd(), '{}/names'.format(self.root_dir))
+		name_path = (os.path.join(name_root, name))
 		try:
 			os.makedirs(name_path)
 		except:
@@ -88,17 +100,59 @@ class IPFS_Engine(Engine):
 		with open(os.path.join(name_path, 'e'), 'w') as e_file:
 			e_file.write(e)
 
-		# return if it worked or not
+	def file_to_memory(self, path):
+		data = None
+		with open(path, 'r') as d:
+			data = d.read()
+		os.remove(path)
+		return data
+
 	def get_package(self, owner, package):
-		raise NotImplementedError()
+		# this will download locally or wherever the user is
+		try:
+			# pull it down from ipfs
+			self.api.get('{}/packages/{}/{}'.format(self.root_hash, owner, package))
+
+			# stores in cwdir, so load the files into memory and delete them
+			template = self.file_to_memory('{}/{}/template'.format(os.getcwd(), package))
+			example = self.file_to_memory('{}/{}/example'.format(os.getcwd(), package))
+			os.rmdir('{}/{}'.format(os.getcwd(), package))
+
+			return {
+				'template' : template,
+				'example' : example
+			}
+		except:
+			return False
+
 	def check_package(self, owner, package):
-		raise NotImplementedError()
+		try:
+			query = self.api.ls('{}/packages/{}/{}'.format(self.root_hash, owner, package))
+			return True
+		except:
+			return False
+	
 	def get_key(self, name):
-		raise NotImplementedError()
+		#try:
+		# pull it down from ipfs
+		self.api.get('{}/names/{}'.format(self.root_hash, name))
+
+		# stores in cwdir, so load the files into memory and delete them
+		n = self.file_to_memory('{}/{}/n'.format(os.getcwd(), name))
+		e = self.file_to_memory('{}/{}/e'.format(os.getcwd(), name))
+
+		os.rmdir('{}/{}'.format(os.getcwd(), name))
+
+		return (n, e)
+		# except:
+		# 	return False
+	
 	def set_secret(self, name, secret):
 		raise NotImplementedError()
+	
 	def get_secret(self, name):
 		raise NotImplementedError()
+	
 	def add_package(self, owner, package, template, example):
 		raise NotImplementedError()
 
