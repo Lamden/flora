@@ -1,3 +1,9 @@
+import gevent
+import gevent.monkey
+gevent.monkey.patch_all()
+
+from gevent.pywsgi import WSGIServer
+
 from flask import Flask, request
 from flask_restful import Resource, Api
 from sqlalchemy import create_engine
@@ -93,7 +99,7 @@ class IPFS_Engine(Engine):
 			os.makedirs(name_path)
 		except:
 			pass
-		
+
 		with open(os.path.join(name_path, 'n'), 'w') as n_file:
 			n_file.write(n)
 
@@ -303,18 +309,18 @@ class PackageRegistry(Resource):
 
 			# construct the user's public key
 			user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
-			
+
 			# create a new secret
 			secret = random_string(53)
 
 			# sign and store it in the db so no plain text instance exists in the universe
 			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
 			query = sql.set_secret(owner, server_signed_secret)
-			
+
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
 			return success_payload(str(user_signed_secret), 'Package available to register.')
-			
+
 		else:
 			return error_payload('Package already exists.')
 
@@ -346,7 +352,7 @@ class PackageRegistry(Resource):
 		solidity = render_contract(payload)
 
 		compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
-	
+
 		# this will throw an assertation error (thanks piper!) if the code doesn't compile
 		try:
 			compile_standard(json.loads(compilation_payload))
@@ -377,9 +383,12 @@ api = Api(app)
 api.add_resource(NameRegistry, '/names')
 api.add_resource(PackageRegistry, '/package_registry')
 api.add_resource(Packages, '/packages')
-
-if __name__ == '__main__':
+def main():
 	(pub, priv) = rsa.newkeys(512)
 	KEY = (pub, priv)
 	print(KEY)
-	app.run(debug=True)
+	http_server = WSGIServer(('', 5000), app)
+	srv_greenlet = gevent.spawn(http_server.start)
+
+if __name__ == '__main__':
+	main()

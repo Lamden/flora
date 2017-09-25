@@ -17,7 +17,12 @@ setup(
          'pycrypto',
          'Jinja2',
          'py-solc',
-         'ipfsapi'
+         'ipfsapi',
+         'six',
+         'semantic_version',
+         'pyasn1',
+         'pytz',
+         'aniso8601'
     ],
     entry_points='''
         [console_scripts]

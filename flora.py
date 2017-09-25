@@ -10,7 +10,7 @@ import glob
 import json
 
 from simplecrypt import encrypt, decrypt
-
+import api
 # tsol libs
 from solc import compile_source, compile_standard
 from jinja2 import Environment
@@ -19,7 +19,7 @@ from io import BytesIO
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
-
+api.main()
 def check_package_name_format(name):
 	split_string = name.split('/')
 	if len(split_string) != 2:
@@ -73,6 +73,7 @@ def cli():
 @cli.command()
 @click.argument('name')
 def register(name):
+	import pdb;pdb.set_trace()
 	# hit api to see if name is already registered
 	if check_name(name)['status'] == 'error':
 		print('{} already registered.'.format(name))
@@ -135,7 +136,7 @@ def upload(package_name):
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
 		return
-	
+
 	# ask where the project directory
 	project_folder = ''
 	project_folder = input('Path of project folder (enter for current working directory):')
@@ -151,13 +152,13 @@ def upload(package_name):
 	code = open(code_path[0])
 
 	# turn the example into a dict
-	with open(example[0]) as e:    
+	with open(example[0]) as e:
 		example = json.load(e)
 
 	# assert that the code compiles with the provided example
 	solidity = load_tsol_file(code, example)
 	compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
-	
+
 	# this will throw an assertation error (thanks piper!) if the code doesn't compile
 	compile_standard(json.loads(compilation_payload))
 
@@ -170,7 +171,7 @@ def upload(package_name):
 
 	owner = split_string[0]
 	package = split_string[1]
-	
+
 	# to replace authorize because you don't need it
 	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
