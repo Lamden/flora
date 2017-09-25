@@ -54,12 +54,13 @@ class IPFS_Engine(Engine):
 		except:
 			raise Exception('Daemon not running')
 
-		if self.root_hash == None:
-			self.root_hash = self.add_dir(os.path.join(os.getcwd(), self.root_dir))
+		self.add_dir(os.path.join(os.getcwd(), self.root_dir))
 
 	def add_dir(self, path):
 		hashes = self.api.add(path, recursive=True)
 		end_hash = hashes[-1]
+		self.root_hash = end_hash['Hash']
+		print(self.root_hash)
 		return end_hash['Hash']
 
 	def exists(self, query):
@@ -69,19 +70,22 @@ class IPFS_Engine(Engine):
 
 	def check_name(self, name):
 		try:
-			query = self.api.get('{}/packages/{}'.format(self.root_hash, name))
+			query = self.api.ls('{}/packages/{}'.format(self.root_hash, name))
 		except:
 			return False
 
 	def add_name(self, name, n, e):
-		root = os.path.join(os.getcwd(), self.root_dir)
+		root = os.path.join(os.getcwd(), '{}/packages'.format(self.root_dir))
 		name_path = (os.path.join(root, name))
-		os.makedirs(name_path)
+		try:
+			os.makedirs(name_path)
+		except:
+			pass
 		
-		with open(os.path.join(name_path, 'n'), w) as n_file:
+		with open(os.path.join(name_path, 'n'), 'w') as n_file:
 			n_file.write(n)
 
-		with open(os.path.join(name_path, 'e'), w) as e_file:
+		with open(os.path.join(name_path, 'e'), 'w') as e_file:
 			e_file.write(e)
 
 		# return if it worked or not
