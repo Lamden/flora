@@ -2,6 +2,7 @@ import ipfsapi
 from sqlalchemy import create_engine
 import json
 import os
+import pickle
 
 class Engine:
 	def __init__(self, *args):
@@ -206,8 +207,8 @@ class SQL_Engine(Engine):
 			return False
 
 		return {
-			'template' : pickle.loads(query[0]),
-			'example' : pickle.loads(query[1])
+			'template' : query[0],
+			'example' : query[1]
 		}
 
 	def check_package(self, owner, package):
