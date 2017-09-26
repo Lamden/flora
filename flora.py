@@ -8,14 +8,9 @@ import rsa
 import os
 import glob
 import json
-
+import tsol
 from simplecrypt import encrypt, decrypt
 import api
-# tsol libs
-from solc import compile_source, compile_standard
-from jinja2 import Environment
-from jinja2.nodes import Name
-from io import BytesIO
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
@@ -28,42 +23,6 @@ def check_package_name_format(name):
 
 def check_name(name):
 	return requests.get('{}/names'.format(API_LOCATION), data = {'name':name}).json()
-
-# copied directly from saffron contracts.py and slightly modified
-# should be abstracted into its own tsol library eventually
-def get_template_variables(fo):
-	nodes = Environment().parse(fo.read()).body[0].nodes
-	var_names = [x.name for x in nodes if type(x) is Name]
-	return var_names
-
-def render_contract(payload):
-	sol_contract = payload.pop('sol')
-	template_variables = get_template_variables(BytesIO(sol_contract.encode()))
-	assert 'contract_name' in payload
-	name = payload.get('contract_name')
-	assert all(x in template_variables for x in list(payload.keys()))
-	template = Environment().from_string(sol_contract)
-	return name, template.render(payload)
-
-def load_tsol_file(file=None, payload=None):
-	assert file and payload, 'No file or payload provided.'
-	payload['sol'] = file.read()
-	name, rendered_contract = render_contract(payload=payload)
-	return name, rendered_contract
-
-input_json = '''{"language": "Solidity", "sources": {
-				"{{name}}": {
-					"content": {{sol}}
-				}
-			},
-			"settings": {
-				"outputSelection": {
-					"*": {
-						"*": [ "metadata", "evm.bytecode", "abi", "evm.bytecode.opcodes", "evm.gasEstimates", "evm.methodIdentifiers" ]
-					}
-				}
-			}
-		}'''
 
 @click.group()
 def cli():
@@ -155,12 +114,7 @@ def upload(package_name):
 	with open(example[0]) as e:
 		example = json.load(e)
 
-	# assert that the code compiles with the provided example
-	solidity = load_tsol_file(code, example)
-	compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
-
-	# this will throw an assertation error (thanks piper!) if the code doesn't compile
-	compile_standard(json.loads(compilation_payload))
+	assert tsol.does_compile(code, example), 'Errors in code.'
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
