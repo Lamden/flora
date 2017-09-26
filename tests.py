@@ -34,9 +34,11 @@ DB_NAME = 'sqlite:///test.db'
 
 def test_sql_add_name():
 	sql = SQL_Engine(DB_NAME)
+
 	name = random_string(10)
 	n = random_string(10)
 	e = random_string(10)
+	
 	assert sql.add_name(name, n, e), 'Name not added.'
 
 def test_sql_add_package():
@@ -52,11 +54,28 @@ def test_sql_add_package():
 	payload = sql.get_package(owner, package)
 	assert success and payload['template'] == template and payload['example'] == example, 'Package not added.'
 
-# def sql_test_get_key():
-# 	pass
+def test_sql_get_key():
+	sql = SQL_Engine(DB_NAME)
 
-# def sql_test_set_secret():
-# 	pass
+	name = random_string(10)
+	n = random_string(10)
+	e = random_string(10)
 
-# def sql_test_get_secret():
-# 	pass
+	sql.add_name(name, n, e)
+	assert sql.get_key(name) == (n, e), 'Key not returned'
+
+def test_sql_secrets():
+	sql = SQL_Engine(DB_NAME)
+
+	name = random_string(10)
+	n = random_string(10)
+	e = random_string(10)
+
+	sql.add_name(name, n, e)
+
+	secret = random_string(10)
+
+	success = sql.set_secret(name, secret)
+
+	payload = sql.get_secret(name)
+	assert success and payload == secret, 'Secret not returned. Got {}. Should be {}'.format(payload, secret)

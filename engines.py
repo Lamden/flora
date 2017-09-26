@@ -220,10 +220,10 @@ class SQL_Engine(Engine):
 
 	def set_secret(self, name, secret):
 		self.connection.execute("UPDATE names SET secret=? WHERE name=?", (secret, name))
-		return self.exists(query)
+		return self.exists(self.get_secret(name))
 
 	def get_secret(self, name):
-		return self.connection("SELECT secret FROM names WHERE name='{}'".format(name)).fetchone()
+		return self.connection.execute("SELECT secret FROM names WHERE name='{}'".format(name)).fetchone()[0]
 
 	def add_package(self, owner, package, template, example):
 		self.connection.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, template, example))
