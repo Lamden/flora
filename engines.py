@@ -51,7 +51,6 @@ class IPFS_Engine(Engine):
 		try:
 			with open(path, 'w') as f:
 				f.write(payload)
-			self.update_fs()
 			return True
 		except:
 			return False
@@ -59,7 +58,6 @@ class IPFS_Engine(Engine):
 	def new_dir(self, path):
 		try:
 			os.makedirs(path)
-			self.update_fs()
 			return True
 		except:
 			return False
@@ -82,6 +80,7 @@ class IPFS_Engine(Engine):
 		os.remove(path)
 		return data
 
+	# wtf is this shit
 	def get_file(self, path):
 		self.api.get('{}/names/{}'.format(self.root_hash, name))
 		# stores in cwdir, so load the files into memory and delete them
@@ -95,26 +94,24 @@ class IPFS_Engine(Engine):
 		return True
 
 	def check_name(self, name):
-		try:
-			query = self.api.ls('{}/packages/{}'.format(self.root_hash, name))
-			return True
-		except:
-			return False
+		# will look at local fs because syncing is asyncronous to code
+		return os.path.isdir('{}/{}/names/{}'.format(os.getcwd(), self.root_dir, name))
 
 	def add_name(self, name, n, e):
 
 		# create new packages directory
-		self.new_dir('{}/packages/{}'.format(os.getcwd(), name))
+		self.new_dir('{}/{}/packages/{}'.format(os.getcwd(), self.root_dir, name))
 		
 		# create new names directory
-		self.new_dir('{}/names/{}'.format(os.getcwd(), name))
+		self.new_dir('{}/{}/names/{}'.format(os.getcwd(), self.root_dir, name))
 
 		# add public key files to names
-		self.new_file('{}/names/{}/n'.format(os.getcwd(), name), n)
-		self.new_file('{}/names/{}/e'.format(os.getcwd(), name), e)
+		self.new_file('{}/{}/names/{}/n'.format(os.getcwd(), self.root_dir, name), n)
+		self.new_file('{}/{}/names/{}/e'.format(os.getcwd(), self.root_dir, name), e)
 
+		self.update_fs()
+		
 		return self.check_name(name)
-
 
 	def get_package(self, owner, package):
 		# this will download locally or wherever the user is

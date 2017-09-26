@@ -6,3 +6,12 @@ flask_restful
 rsa
 simple-crypt
 pycrypto
+Jinja2
+py-solc
+ipfsapi
+six
+semantic_version
+pyasn1
+pytz
+aniso8601
+tsol

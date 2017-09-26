@@ -22,7 +22,8 @@ setup(
          'semantic_version',
          'pyasn1',
          'pytz',
-         'aniso8601'
+         'aniso8601',
+         'tsol'
     ],
     entry_points='''
         [console_scripts]

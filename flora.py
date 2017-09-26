@@ -176,6 +176,7 @@ def upload(package_name):
 	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
 	# check to see if there was a success (the package is available)
+	print(r.json()['message'])
 	if r.json()['status'] == 'success':
 
 		# if so, decrypt the secret
