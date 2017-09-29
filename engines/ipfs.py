@@ -1,8 +1,12 @@
 import ipfsapi
 from ipfsapi.encoding import Encoding
+from engine import Engine
+import logging
+import os
+import requests
 
 class IPFS_Engine(Engine):
-	def __init__(self, ip, port, root_url='https://flora.lamden.io/apiv1', root_dir='/'):
+	def __init__(self, ip, port, root_url='https://flora.lamden.io/apiv1', root_dir='/', root_hash=None):
 		'''
 		Parameters: ip, port, root_hash, root_dir = ('127.0.0.1',
 													5000,

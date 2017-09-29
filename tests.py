@@ -1,5 +1,6 @@
 import pytest
-from engines import SQL_Engine, IPFS_Engine
+from engines.sql import SQL_Engine
+from engines.ipfs import IPFS_Engine
 from flask import Flask, request
 import string
 import random

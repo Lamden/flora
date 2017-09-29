@@ -4,5 +4,6 @@
   "tests.py::test_ipfs_add_name": true,
   "tests.py::test_ipfs_add_package": true,
   "tests.py::test_ipfs_get_key": true,
-  "tests.py::test_ipfs_secrets": true
+  "tests.py::test_ipfs_secrets": true,
+  "tests.py::test_sql": true
 }

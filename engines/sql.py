@@ -1,10 +1,13 @@
 import logging
 from pkg_resources import resource_filename
 from sqlalchemy import create_engine
+from engine import Engine
+import logging
+import pickle
 
 class SQL_Engine(Engine):
 	def __init__(self, *args):
-		self.log = logging.getLogger(f'{el} {__name__}')
+		self.log = logging.getLogger(resource_filename(__name__, __file__))
 		self.engine = create_engine(args[0])
 		self.connection = self.engine.connect()
 
@@ -28,8 +31,8 @@ class SQL_Engine(Engine):
 			return False
 
 		return {
-			'template' : query[0],
-			'example' : query[1]
+			'template' : str(pickle.loads(query[0])),
+			'example' : str(pickle.loads(query[1]))
 		}
 
 	def check_package(self, owner, package):
