@@ -158,7 +158,6 @@ api.add_resource(Packages, '/packages')
 def main():
 	(pub, priv) = rsa.newkeys(512)
 	KEY = (pub, priv)
-	print(KEY)
 	http_server = WSGIServer(('', 5000), app)
 	srv_greenlet = gevent.spawn(http_server.start)
 

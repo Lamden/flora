@@ -24,6 +24,40 @@ def check_package_name_format(name):
 def check_name(name):
 	return requests.get('{}/names'.format(API_LOCATION), data = {'name':name}).json()
 
+def split_package_name(name):
+	# takes input as <username> / <package> , <implementation> and returns a payload for it
+
+	# splitting of arguments into lists
+	user_and_package = name.split('/')
+	package_and_implemenation = None
+	
+	if ',' in str(user_and_package[1]):
+		package_and_implemenation = str(user_and_package[1]).split(',')
+
+	payload = {
+		'username' : None,
+		'package' : None,
+		'implementation' : None
+	}
+
+	# explicit construction of the payload. not pretty, but functional
+	payload['username'] = user_and_package[0]
+
+	if package_and_implemenation != None:
+		payload['package'] = package_and_implemenation[0]
+		payload['implementation'] = package_and_implemenation[1]
+	else:
+		try:
+			payload['package'] = user_and_package[1]
+		except:
+			pass
+
+	# error catching for arguments that end with '/' or ',' and split into a list of 2 with an empty 2nd index
+	payload['package'] = None if payload['package'] == '' else payload['package']
+	payload['implementation'] = None if payload['implementation'] == '' else payload['implementation']
+
+	return payload
+
 @click.group()
 def cli():
 	pass
@@ -152,3 +186,30 @@ def upload(package_name):
 		print(r.json()['message'])
 	else:
 		print(r.json()['message'])
+
+@cli.command()
+@click.argument('package_name')
+def list(package_name):
+	# lists all of the packages for a user, or all of the implementations for a package
+
+	# <username> / <package> , <implementation>
+
+	# detemine if there's a user and package, or just a user
+	p = split_package_name(package_name)
+	if p['username'] != None:
+		# get all of the packages and print their names in a pretty print
+		if p['package'] != None:
+			# get all implementations and print their names in a pretty print
+			if p['implementation'] != None:
+				print('Cannot list one specific implementation. Use "print".')
+				return
+			return
+		return
+
+	print('Error parsing arguments. Got {}. Specify in format such that: <username>/<package> with <package> being optional.'.format(p))
+
+# @cli.command()
+# @click.argument('payload')
+# def print(payload):
+
+# 	pass
