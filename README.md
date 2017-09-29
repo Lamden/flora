@@ -10,7 +10,7 @@ flora --help
 
 Flora is a simple package manager (for now) that allows users to register names, upload, and download packages in an encrypted manner. The current implementation uses SQL for demo purposes. This is not production ready.
 
-Users must register a name on Flora before uploading their packages with ```flora register <username>.``` Once a name is registered, the user is given an RSA key. The public key is stored on Flora to sign messages, and the private key is stored locally to decrypt them. Users can check is a name is available before registering with ```flora check <username>```.
+Users must register a name on Flora before uploading their packages with ```flora register <username>.``` Once a name is registered, the user is given an RSA key. The public key is stored on Flora to sign messages, and the private key is stored locally to decrypt them. Users can check if a name is available before registering with ```flora check <username>```.
 
 After registering a username, packages can be uploaded. Instead of storing authentication credentials insecure plaintext methods seen in other package managers (like [PiPy](https://packaging.python.org/guides/migrating-to-pypi-org/#uploading])), Flora uses signed secrets to verify identity. When a user runs ```flora upload <username>/<package>```, given the package does not already exist, the server will generate a random secret and sign it with the stored public key for that user. That secret is sent back to the user as an authentication puzzle.
 
@@ -36,7 +36,7 @@ contract {{contract_name}} {
     address public owner;
     mapping(address => uint256) balances;
     mapping(address => mapping (address => uint256)) allowed;
-    
+
 ```
 
 And includes an example JSON payload to complete it that looks like this:

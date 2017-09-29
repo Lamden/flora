@@ -8,18 +8,13 @@ import rsa
 import os
 import glob
 import json
-
+import tsol
 from simplecrypt import encrypt, decrypt
-
-# tsol libs
-from solc import compile_source, compile_standard
-from jinja2 import Environment
-from jinja2.nodes import Name
-from io import BytesIO
+import api
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
-
+api.main()
 def check_package_name_format(name):
 	split_string = name.split('/')
 	if len(split_string) != 2:
@@ -29,42 +24,6 @@ def check_package_name_format(name):
 def check_name(name):
 	return requests.get('{}/names'.format(API_LOCATION), data = {'name':name}).json()
 
-# copied directly from saffron contracts.py and slightly modified
-# should be abstracted into its own tsol library eventually
-def get_template_variables(fo):
-	nodes = Environment().parse(fo.read()).body[0].nodes
-	var_names = [x.name for x in nodes if type(x) is Name]
-	return var_names
-
-def render_contract(payload):
-	sol_contract = payload.pop('sol')
-	template_variables = get_template_variables(BytesIO(sol_contract.encode()))
-	assert 'contract_name' in payload
-	name = payload.get('contract_name')
-	assert all(x in template_variables for x in list(payload.keys()))
-	template = Environment().from_string(sol_contract)
-	return name, template.render(payload)
-
-def load_tsol_file(file=None, payload=None):
-	assert file and payload, 'No file or payload provided.'
-	payload['sol'] = file.read()
-	name, rendered_contract = render_contract(payload=payload)
-	return name, rendered_contract
-
-input_json = '''{"language": "Solidity", "sources": {
-				"{{name}}": {
-					"content": {{sol}}
-				}
-			},
-			"settings": {
-				"outputSelection": {
-					"*": {
-						"*": [ "metadata", "evm.bytecode", "abi", "evm.bytecode.opcodes", "evm.gasEstimates", "evm.methodIdentifiers" ]
-					}
-				}
-			}
-		}'''
-
 @click.group()
 def cli():
 	pass
@@ -73,8 +32,9 @@ def cli():
 @cli.command()
 @click.argument('name')
 def register(name):
+	import pdb;pdb.set_trace()
 	# hit api to see if name is already registered
-	if check_name(name) == True:
+	if check_name(name)['status'] == 'error':
 		print('{} already registered.'.format(name))
 	else:
 		# generate new keypair
@@ -88,7 +48,7 @@ def register(name):
 		    pickle.dump((pub, priv), f, pickle.HIGHEST_PROTOCOL)
 
 		r = requests.post('{}/names'.format(API_LOCATION), data = {'name' : name, 'n' : pub.n, 'e' : pub.e})
-		if r.json() == True:
+		if r.json()['status'] == 'success':
 			print('Successfully registered new name: {}'.format(name))
 		else:
 			print('Error registering name: {}'.format(name))
@@ -97,10 +57,7 @@ def register(name):
 @click.argument('name')
 def check(name):
 	# hit api to see if name is already registered
-	if check_name(name) == True:
-		print('{} already registered.'.format(name))
-	else:
-		print('{} is available to register.'.format(name))
+	print(check_name(name)['message'])
 
 @cli.command()
 @click.argument('package_name')
@@ -138,7 +95,7 @@ def upload(package_name):
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
 		return
-	
+
 	# ask where the project directory
 	project_folder = ''
 	project_folder = input('Path of project folder (enter for current working directory):')
@@ -154,15 +111,10 @@ def upload(package_name):
 	code = open(code_path[0])
 
 	# turn the example into a dict
-	with open(example[0]) as e:    
+	with open(example[0]) as e:
 		example = json.load(e)
 
-	# assert that the code compiles with the provided example
-	solidity = load_tsol_file(code, example)
-	compilation_payload = Environment().from_string(input_json).render(name=solidity[0], sol=json.dumps(solidity[1]))
-	
-	# this will throw an assertation error (thanks piper!) if the code doesn't compile
-	compile_standard(json.loads(compilation_payload))
+	assert tsol.does_compile(code, example), 'Errors in code.'
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
@@ -173,11 +125,12 @@ def upload(package_name):
 
 	owner = split_string[0]
 	package = split_string[1]
-	
+
 	# to replace authorize because you don't need it
 	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
 	# check to see if there was a success (the package is available)
+	print(r.json()['message'])
 	if r.json()['status'] == 'success':
 
 		# if so, decrypt the secret
