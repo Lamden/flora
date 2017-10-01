@@ -50,8 +50,7 @@ class IPFS_Engine(Engine):
 
 	def get_file(self, path):
 		# *args, **kwargs passed to requests
-		stream, headers = self.api.get(f'{self.root_names}/{name}',
-										recursive=False)
+		stream, headers = self.api.get(f'{self.root_names}/{name}', recursive=False)
 		return self.enc.parse(stream), headers
 
 	# interface funcs

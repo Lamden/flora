@@ -66,7 +66,6 @@ def cli():
 @cli.command()
 @click.argument('name')
 def register(name):
-	import pdb;pdb.set_trace()
 	# hit api to see if name is already registered
 	if check_name(name)['status'] == 'error':
 		print('{} already registered.'.format(name))
@@ -148,7 +147,8 @@ def upload(package_name):
 	with open(example[0]) as e:
 		example = json.load(e)
 
-	assert tsol.does_compile(code, example), 'Errors in code.'
+	tsol.compile(code, example)
+	#assert tsol.does_compile(code, example), 'Errors in code.'
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
