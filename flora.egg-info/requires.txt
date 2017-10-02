@@ -14,4 +14,3 @@ semantic_version
 pyasn1
 pytz
 aniso8601
-tsol

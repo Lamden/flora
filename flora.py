@@ -1,3 +1,5 @@
+from io import StringIO
+import sys
 import sqlite3
 import click
 import subprocess
@@ -11,7 +13,6 @@ import json
 import tsol
 from simplecrypt import encrypt, decrypt
 import api
-
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
@@ -62,6 +63,12 @@ def split_package_name(name):
 def cli():
 	pass
 
+@cli.command()
+def staging():
+	stdin_text = click.get_text_stream('stdin')
+	for line in stdin_text:
+		print(line)
+
 # registers a new username
 @cli.command()
 @click.argument('name')
@@ -94,7 +101,8 @@ def check(name):
 
 @cli.command()
 @click.argument('package_name')
-def install(package_name):
+@click.option('--folder/--no-folder', default=False)
+def install(package_name, folder):
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
@@ -102,8 +110,14 @@ def install(package_name):
 	owner = split_string[0]
 	package = split_string[1]
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
-	print(r.json()['data']['template'])
-	print(r.json()['data']['example'])
+	d = r.json()['data']
+	if folder:
+		out = tsol.generate_code(StringIO(d['template']), eval(d['example']))
+		sys.stdout.write(str(out))
+		exit()
+	else:
+		print(d['template'])
+		print(d['example'])
 	# ask where to save files
 	project_folder = ''
 	project_folder = input('Directory to save package (enter for current working directory):')
@@ -113,10 +127,10 @@ def install(package_name):
 	os.makedirs(package_dir)
 
 	with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
-		f.write(r.json()['data']['template'])
+		f.write(d['template'])
 
-	with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
-		f.write(str(r.json()['data']['example']))
+	with open(os.path.join(package_dir, 'example.json'), 'w') as f:
+		f.write(str(d['example']))
 
 	print('Package successfully pulled!')
 

@@ -37,7 +37,7 @@ def compilation_payload_from_paths(template, example):
 	return Environment().from_string(BASE_JSON_PAYLOAD).render(name=solidity[0], sol=json.dumps(solidity[1]))
 
 def generate_code(template, example):
-	return(Template(template).render(example))
+	return Template(template.read()).render(example)
 
 def generate_compilation_payload(template, example):
 	sol = json.dumps('{}'.format(template.read()))
