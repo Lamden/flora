@@ -91,23 +91,6 @@ class IPFS_Engine(Engine):
 		except:
 			return False
 
-	def set_secret(self, name, secret):
-		if self.check_name(name):
-			self.new_file('{}/names/{}/secret'.format(os.getcwd(), name), secret)
-		return False
-
-	def get_named_secret(self, name):
-		try:
-			# pull named_secret from ipfs
-			self.api.get(f'{self.root_hash}/names/{name}')
-			# stores in cwdir, so load the files into memory and delete them
-			secret = self.file_to_memory(f'{os.getcwd()}/{name}/secret')
-			os.rmdir('{}/{}'.format(os.getcwd(), name))
-
-			return secret
-		except:
-			return False
-
 	def add_package(self, owner, package, tar_gz_stream):
 		def update_link(owner, package, link_hash):
 			respone = requests.post(self.root_url, data=json.dumps({"owner": owner,

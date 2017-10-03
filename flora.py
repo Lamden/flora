@@ -12,7 +12,9 @@ import glob
 import json
 import tsol
 from simplecrypt import encrypt, decrypt
+import string
 import api
+import random
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
@@ -184,20 +186,20 @@ def upload(package_name):
 	#sign package here
 
 	message = random_string(64)
-	signature = rsa.sign(message, priv, 'SHA-1')
+	signature = rsa.sign(message.encode('utf8'), priv, 'SHA-1')
 
 	payload = {
 		'owner' : owner,
 		'package' : package,
 		'template' : template,
-		'example' : example
+		'example' : str(example),
 		'message' : message,
-		'signature' : signature
+		'signature' : str(signature)
 	}
 
 	# post data
 	print('Uploading to Flora under {}/{}...'.format(owner, package))
-	r = requests.post('{}/package'.format(API_LOCATION), data = payload)
+	r = requests.post('{}/packages'.format(API_LOCATION), data = payload)
 
 	print(r.json()['message'])
 

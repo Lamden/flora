@@ -89,10 +89,13 @@ class Packages(Resource):
 		key = sql.get_key(request.form['owner'])
 		pub = rsa.PublicKey(int(key[0]), int(key[1]))
 
-		assert rsa.verify(request.form['message'], request.form['signature'], pub)
+		assert rsa.verify(request.form['message'].encode('utf8'), eval(request.form['signature']), pub)
+
+		print('Successfully verified identity...')
 
 		# assert that the code compiles with the provided example
-		tsol.compile(StringIO(request.form['template']), request.form['example'])
+		print(request.form['example'])
+		tsol.compile(StringIO(request.form['template']), json.loads(request.form['example']))
 
 		template = pickle.dumps(request.form['template'])
 		example = pickle.dumps(request.form['example'])
