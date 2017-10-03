@@ -42,7 +42,7 @@ class Kademlia_Engine(Engine):
 	def check_name(self, name):
 		return self.exists(server.get(f'{name}.key').addCallback(done))
 
-	def add_name(self, name, n, e):
+	def add_name(self, name, n, e, verification):
 		key = f'{name}.key'
 		return self.exists(server.set(key, (n, e)).addCallback(returnValue(key)))
 
@@ -55,11 +55,7 @@ class Kademlia_Engine(Engine):
 	def get_key(self, name):
 		return server.get(f'{name}.key').addCallback(done)
 
-	def set_secret(self, name, secret):
+	def add_package(self, owner, package, template, example, verification):
 		raise NotImplementedError()
 
-	def get_named_secret(self, name):
-		return server.get(f'{name}.secret').addCallback(done)
-
-	def add_package(self, owner, package, template, example):
-		raise NotImplementedError()
+	

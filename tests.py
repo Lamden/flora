@@ -40,31 +40,15 @@ def abstract_test_engine_get_key(engine):
 	engine.add_name(name, n, e)
 	assert engine.get_key(name) == (n, e), 'Key not returned'
 
-def abstract_test_engine_secrets(engine):
-
-	name = random_string(10)
-	n = random_string(10)
-	e = random_string(10)
-
-	engine.add_name(name, n, e)
-
-	secret = random_string(10)
-
-	success = engine.set_secret(name, secret)
-
-	payload = engine.get_secret(name)
-	assert success and payload == secret, 'Secret not returned. Got {}. Should be {}'.format(payload, secret)
 
 def test_sql():
 	sql = SQL_Engine(DB_NAME)
 	abstract_test_engine_add_name(sql)
 	abstract_test_engine_add_package(sql)
 	abstract_test_engine_get_key(sql)
-	abstract_test_engine_secrets(sql)
 
 def test_ipfs():
 	ipfs = IPFS_Engine('127.0.0.1', 5001, None, 'ipfs')
 	abstract_test_engine_add_name(ipfs)
 	abstract_test_engine_add_package(ipfs)
 	abstract_test_engine_get_key(ipfs)
-	abstract_test_engine_secrets(ipfs)
