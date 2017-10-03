@@ -13,9 +13,11 @@ import json
 import tsol
 from simplecrypt import encrypt, decrypt
 import api
+
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
+
 def check_package_name_format(name):
 	split_string = name.split('/')
 	if len(split_string) != 2:
@@ -166,40 +168,29 @@ def upload(package_name):
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
-	payload = {
-		'tsol' : open(code_path[0]).read(),
-		'example' : example
-	}
-
+	template = open(code_path[0]).read()
 	owner = split_string[0]
 	package = split_string[1]
 
-	# to replace authorize because you don't need it
-	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	# if so, decrypt the secret
+	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
 
-	# check to see if there was a success (the package is available)
+	print('Encrypting package...')
+
+	
+
+	payload = {
+		'owner' : owner,
+		'package' : package,
+		'template' : template,
+		'example' : example
+	}
+
+	# post data
+	print('Uploading to Flora under {}/{}...'.format(owner, package))
+	r = requests.post('{}/package_registry'.format(API_LOCATION), data = payload)
+
 	print(r.json()['message'])
-	if r.json()['status'] == 'success':
-
-		# if so, decrypt the secret
-		secret = r.json()['data']
-		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
-		cipher = rsa.decrypt(eval(secret), priv)
-
-		print('Encrypting package...')
-
-		# sign data
-		payload = json.dumps(payload)
-		message = encrypt(cipher, payload)
-
-		# post data
-		data = message
-		print('Uploading to Flora under {}/{}...'.format(owner, package))
-		r = requests.post('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
-
-		print(r.json()['message'])
-	else:
-		print(r.json()['message'])
 
 @cli.command()
 @click.argument('package_name')

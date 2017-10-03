@@ -74,56 +74,14 @@ class NameRegistry(Resource):
 # GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL_Engine thing.
 # POST required last secret. Secret is then flushed so auth is required again before POSTing again
 class PackageRegistry(Resource):
-	def get(self):
-		# checks if the user can create a new package entry
-		# if so, returns a new secret
-		# user then must post the signed package to this endpoint
-		sql = SQL_Engine(DB_NAME)
-
-		if not sql.check_package(request.form['owner'], request.form['package']):
-			# try to pull the users public key
-			query = sql.get_key(request.form['owner'])
-
-			# in doing so, check if the user exists
-			if query == None:
-				return error_payload('Owner does not exist.')
-
-			# construct the user's public key
-			user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
-
-			# create a new secret
-			secret = random_string(53)
-
-			# sign and store it in the db so no plain text instance exists in the universe
-			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
-			query = sql.set_secret(request.form['owner'], server_signed_secret)
-
-			# sign and send secret to user
-			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
-			return success_payload(str(user_signed_secret), 'Package available to register.')
-
-		else:
-			return error_payload('Package already exists.')
-
 	def post(self):
 		sql = SQL_Engine(DB_NAME)
-
-		payload = {
-			'owner' : request.form['owner'],
-			'package' : request.form['package'],
-			'data' : request.form['data']
-		}
-
-		owner = request.form['owner']
-		package = request.form['package']
-		data = request.form['data']
-		b = sql.get_named_secret(owner)
-		secret = rsa.decrypt(eval(b), KEY[1])
 
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
 		# compilation of this code should return true
 		# if there are errors, don't commit it to the db
 		# otherwise, commit it
+
 		raw_data = decrypt(secret, eval(data))
 		package_data = json.loads(raw_data.decode('utf8'))
 		'''
@@ -134,12 +92,12 @@ class PackageRegistry(Resource):
 		'''
 
 		# assert that the code compiles with the provided example
-		tsol.compile(StringIO(package_data['tsol']), package_data['example'])
+		tsol.compile(StringIO(request.form['template']), request.form['example'])
 
-		template = pickle.dumps(package_data['tsol'])
-		example = pickle.dumps(package_data['example'])
+		template = pickle.dumps(request.form['template'])
+		example = pickle.dumps(request.form['example'])
 
-		if sql.add_package(owner, package, template, example) == True:
+		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
 
@@ -160,16 +118,6 @@ api = Api(app)
 api.add_resource(NameRegistry, '/names')
 api.add_resource(PackageRegistry, '/package_registry')
 api.add_resource(Packages, '/packages')
-(pub, priv) = rsa.newkeys(512)
-KEY = (pub, priv)
-
-if not os.path.isfile('./SUPERSECRET'):
-	with open('./SUPERSECRET', 'wb') as f:
-		pickle.dump(KEY, f, pickle.HIGHEST_PROTOCOL)
-
-else:
-	with open('./SUPERSECRET', 'rb') as f:
-		KEY = pickle.load(f)
 
 def main():
 	http_server = WSGIServer(('', 5000), app)
