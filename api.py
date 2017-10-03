@@ -71,35 +71,6 @@ class NameRegistry(Resource):
 		else:
 			return error_payload('Unavailable to register name.')
 
-# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL_Engine thing.
-# POST required last secret. Secret is then flushed so auth is required again before POSTing again
-class PackageRegistry(Resource):
-	def post(self):
-		sql = SQL_Engine(DB_NAME)
-
-		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
-		# compilation of this code should return true
-		# if there are errors, don't commit it to the db
-		# otherwise, commit it
-
-		raw_data = decrypt(secret, eval(data))
-		package_data = json.loads(raw_data.decode('utf8'))
-		'''
-		payload = {
-			'tsol' : open(code_path[0]).read(),
-			'example' : example
-		}
-		'''
-
-		# assert that the code compiles with the provided example
-		tsol.compile(StringIO(request.form['template']), request.form['example'])
-
-		template = pickle.dumps(request.form['template'])
-		example = pickle.dumps(request.form['example'])
-
-		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
-			return success_payload(None, 'Package successfully uploaded.')
-		return error_payload('Problem uploading package. Try again.')
 
 class Packages(Resource):
 	def get(self):
@@ -111,12 +82,29 @@ class Packages(Resource):
 			return error_payload('Could not find package.')
 
 		return success_payload(data, 'Package successfully pulled.')
+	def post(self):
+		sql = SQL_Engine(DB_NAME)
+
+		# check to see if the message is truely signed by the correct user
+		key = sql.get_key(request.form['owner'])
+		pub = rsa.PublicKey(int(key[0]), int(key[1]))
+
+		assert rsa.verify(request.form['message'], request.form['signature'], pub)
+
+		# assert that the code compiles with the provided example
+		tsol.compile(StringIO(request.form['template']), request.form['example'])
+
+		template = pickle.dumps(request.form['template'])
+		example = pickle.dumps(request.form['example'])
+
+		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
+			return success_payload(None, 'Package successfully uploaded.')
+		return error_payload('Problem uploading package. Try again.')
 
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
-api.add_resource(PackageRegistry, '/package_registry')
 api.add_resource(Packages, '/packages')
 
 def main():

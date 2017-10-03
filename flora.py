@@ -18,6 +18,10 @@ API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
 
+def random_string(length):
+    pool = string.ascii_letters + string.digits
+    return ''.join(random.choice(pool) for i in range(length))
+
 def check_package_name_format(name):
 	split_string = name.split('/')
 	if len(split_string) != 2:
@@ -177,18 +181,23 @@ def upload(package_name):
 
 	print('Encrypting package...')
 
-	
+	#sign package here
+
+	message = random_string(64)
+	signature = rsa.sign(message, priv, 'SHA-1')
 
 	payload = {
 		'owner' : owner,
 		'package' : package,
 		'template' : template,
 		'example' : example
+		'message' : message,
+		'signature' : signature
 	}
 
 	# post data
 	print('Uploading to Flora under {}/{}...'.format(owner, package))
-	r = requests.post('{}/package_registry'.format(API_LOCATION), data = payload)
+	r = requests.post('{}/package'.format(API_LOCATION), data = payload)
 
 	print(r.json()['message'])
 
