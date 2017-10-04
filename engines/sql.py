@@ -11,23 +11,6 @@ class SQL_Engine(Engine):
 		self.engine = create_engine(args[0])
 		self.connection = self.engine.connect()
 
-		try:
-			self.check_name('Bob')
-		except:
-			self.connection.execute("CREATE TABLE `names` ( \
-					`name`	TEXT, \
-					`n`	TEXT, \
-					`e`	TEXT, \
-					`secret` TEXT \
-				);")
-
-			self.connection.execute("CREATE TABLE `packages` ( \
-				`owner`	TEXT, \
-				`package`	TEXT, \
-				`template`	BLOB, \
-				`example`	BLOB \
-			);")
-
 	def exists(self, query):
 		if query == None:
 			return False

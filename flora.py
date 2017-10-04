@@ -62,12 +62,6 @@ def split_package_name(name):
 def cli():
 	pass
 
-@cli.command()
-@click.argument('name')
-def check(name):
-	# hit api to see if name is already registered
-	print(check_name(name)['message'])
-
 # registers a new username
 @cli.command()
 @click.argument('name')
@@ -93,10 +87,14 @@ def register(name):
 			print('Error registering name: {}'.format(name))
 
 @cli.command()
-@click.argument('package_name')
-def pull(package_name):
-	# no args should parse from a requirements.txt file
+@click.argument('name')
+def check(name):
+	# hit api to see if name is already registered
+	print(check_name(name)['message'])
 
+@cli.command()
+@click.argument('package_name')
+def install(package_name):
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
@@ -104,38 +102,23 @@ def pull(package_name):
 	owner = split_string[0]
 	package = split_string[1]
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	print(r.json()['data']['template'])
+	print(r.json()['data']['example'])
+	# ask where to save files
+	project_folder = ''
+	project_folder = input('Directory to save package (enter for current working directory):')
+	project_folder = os.getcwd() if project_folder == '' else project_folder
 
-	print(r.json())
+	package_dir = os.path.join(project_folder, package_name)
+	os.makedirs(package_dir)
 
-	try:
-		r.json()['data']['template']
+	with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
+		f.write(r.json()['data']['template'])
 
+	with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
+		f.write(str(r.json()['data']['example']))
 
-		print(r.json()['data']['template'])
-		print(r.json()['data']['example'])
-		# ask where to save files
-		project_folder = ''
-		project_folder = input('Directory to save package (enter for current working directory):')
-		project_folder = os.getcwd() if project_folder == '' else project_folder
-
-		package_dir = os.path.join(project_folder, package_name)
-		os.makedirs(package_dir)
-
-		with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
-			f.write(r.json()['data']['template'])
-
-		with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
-			f.write(str(r.json()['data']['example']))
-
-		print('Package successfully pulled!')
-
-	except:
-		print('Error pulling package...')
-
-@cli.command()
-@click.argument('package_name')
-def stage():
-	pass
+	print('Package successfully pulled!')
 
 @cli.command()
 @click.argument('package_name')
