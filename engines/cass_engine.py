@@ -4,29 +4,21 @@ from sqlalchemy import create_engine
 from engine import Engine
 import logging
 import pickle
+import uuid
 
-class SQL_Engine(Engine):
+from cassandra.cluster import Cluster
+from cass_auth import KeyAuthProvider
+
+class Casssandra_Engine(Engine):
 	def __init__(self, *args):
 		self.log = logging.getLogger(resource_filename(__name__, __file__))
-		self.engine = create_engine(args[0])
-		self.connection = self.engine.connect()
 
-		try:
-			self.check_name('Bob')
-		except:
-			self.connection.execute("CREATE TABLE `names` ( \
-					`name`	TEXT, \
-					`n`	TEXT, \
-					`e`	TEXT, \
-					`secret` TEXT \
-				);")
+		self.cluster = Cluster(args[0], port=args[1])
+		self.pub = args[2]
+		self.priv = args[3]
 
-			self.connection.execute("CREATE TABLE `packages` ( \
-				`owner`	TEXT, \
-				`package`	TEXT, \
-				`template`	BLOB, \
-				`example`	BLOB \
-			);")
+		# going to have to modify this shit later.
+		self.connection = self.cluster.connect(auth_provider=KeyAuthProvider(None, None, None))
 
 	def exists(self, query):
 		if query == None:
@@ -38,7 +30,7 @@ class SQL_Engine(Engine):
 		return self.exists(query)
 
 	def add_name(self, name, n, e):
-		query = self.connection.execute('INSERT INTO names VALUES (?,?,?,?)', (name, n, e, ''))
+		query = self.connection.execute('INSERT INTO names (id, name, n, e) VALUES (?,?,?,?)', (uuid.uuid1(), name, n, e))
 		return self.check_name(name)
 
 	def get_package(self, owner, package):
@@ -53,19 +45,14 @@ class SQL_Engine(Engine):
 		}
 
 	def check_package(self, owner, package):
-		query = self.connection.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}'".format(owner, package)).fetchone()
+		query = self.connection.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}' ALLOW FILTERING".format(owner, package)).fetchone()
 		return self.exists(query)
 
 	def get_key(self, name):
 		return self.connection.execute("SELECT n, e FROM names WHERE name='{}'".format(name)).fetchone()
 
-	def set_secret(self, name, secret):
-		self.connection.execute("UPDATE names SET secret=? WHERE name=?", (secret, name))
-		return self.exists(self.get_named_secret(name))
-
-	def get_named_secret(self, name):
-		return self.connection.execute("SELECT secret FROM names WHERE name='{}'".format(name)).fetchone()[0]
-
 	def add_package(self, owner, package, template, example):
+		self.connection = self.cluster.connect(auth_provider=KeyAuthProvider(owner, self.pub, self.priv))
+
 		self.connection.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, template, example))
 		return self.check_package(owner, package)

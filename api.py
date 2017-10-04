@@ -141,11 +141,10 @@ class Packages(Resource):
 	def get(self):
 		sql = SQL_Engine(DB_NAME)
 
-		data = sql.get_package(request.form['owner'], request.form['package'])
-
-		if data == None:
+		if sql.check_package(request.form['owner'], request.form['package']) == False:
 			return error_payload('Could not find package.')
-
+		
+		data = sql.get_package(request.form['owner'], request.form['package'])
 		return success_payload(data, 'Package successfully pulled.')
 
 app = Flask(__name__)
