@@ -94,7 +94,7 @@ def check(name):
 
 @cli.command()
 @click.argument('package_name')
-def install(package_name):
+def pull(package_name):
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
