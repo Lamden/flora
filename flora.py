@@ -12,6 +12,10 @@ import tsol
 from simplecrypt import encrypt, decrypt
 import api
 
+lamden_home = os.environ.get('LAMDEN_HOME', None)
+lamden_folder_path = os.environ.get('LAMDEN_FOLDER_PATH', None)
+lamden_db_file = os.environ.get('LAMDEN_DB_FILE', None)
+
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
@@ -94,8 +98,15 @@ def register(name):
 
 @cli.command()
 @click.argument('package_name')
-def pull(package_name):
+@click.argument('location')
+def pull(package_name, location):
 	# no args should parse from a requirements.txt file
+
+	if location == 'here':
+		print('yes')
+
+	if location == 'home':
+		print('ye')
 
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
@@ -108,10 +119,17 @@ def pull(package_name):
 	try:
 		r.json()['data']['template']
 
-		# ask where to save files
 		project_folder = ''
-		project_folder = input('Directory to save package (enter for current working directory):')
-		project_folder = os.getcwd() if project_folder == '' else project_folder
+		if location != 'here' or location != 'home':
+			# ask where to save files
+			project_folder = input('Directory to save package (enter for current working directory):')
+			project_folder = os.getcwd() if project_folder == '' else project_folder
+
+		elif location == 'here':
+			project_folder = os.getcwd()
+
+		elif location == 'home':
+			project_folder = lamden_home
 
 		package_dir = os.path.join(project_folder, package_name)
 		os.makedirs(package_dir)
@@ -122,6 +140,8 @@ def pull(package_name):
 		with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
 			f.write(str(r.json()['data']['example']))
 
+
+
 		print('Package successfully pulled!')
 
 	except:
@@ -130,6 +150,8 @@ def pull(package_name):
 @cli.command()
 @click.argument('package_name')
 def stage():
+	# check the chain folder for contracts
+	sol_files = os.path.join(settings.lamden_folder_path, 'contracts/*.sol')
 	pass
 
 @cli.command()
