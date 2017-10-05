@@ -3,6 +3,7 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 from gevent.pywsgi import WSGIServer
+from io import StringIO
 
 from flask import Flask, request
 from flask_restful import Resource, Api
@@ -95,7 +96,7 @@ class PackageRegistry(Resource):
 
 			# sign and store it in the db so no plain text instance exists in the universe
 			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
-			query = sql.set_secret(owner, server_signed_secret)
+			query = sql.set_secret(request.form['owner'], server_signed_secret)
 
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
@@ -111,7 +112,8 @@ class PackageRegistry(Resource):
 		package = request.form['package']
 		data = request.form['data']
 
-		secret = rsa.decrypt(eval(sql.get_secret(owner)[0]), KEY[1])
+		b = sql.get_named_secret(owner)
+		secret = rsa.decrypt(eval(b), KEY[1])
 
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
 		# compilation of this code should return true
@@ -127,8 +129,7 @@ class PackageRegistry(Resource):
 		'''
 
 		# assert that the code compiles with the provided example
-		if not tsol.does_compile(package_data['tsol'], package_data['example']):
-			return error_payload('Provided payload contains compilation errors.')
+		tsol.compile(StringIO(package_data['tsol']), package_data['example'])
 
 		template = pickle.dumps(package_data['tsol'])
 		example = pickle.dumps(package_data['example'])
@@ -154,9 +155,18 @@ api.add_resource(NameRegistry, '/names')
 api.add_resource(PackageRegistry, '/package_registry')
 api.add_resource(Packages, '/packages')
 
-def main():
-	(pub, priv) = rsa.newkeys(512)
-	KEY = (pub, priv)
+(pub, priv) = rsa.newkeys(512)
+KEY = (pub, priv)
+
+if not os.path.isfile('./SUPERSECRET'):
+	with open('./SUPERSECRET', 'wb') as f:
+		pickle.dump(KEY, f, pickle.HIGHEST_PROTOCOL)
+
+else:
+	with open('./SUPERSECRET', 'rb') as f:
+		KEY = pickle.load(f)
+
+def main():	
 	http_server = WSGIServer(('', 5000), app)
 	srv_greenlet = gevent.spawn(http_server.start)
 
