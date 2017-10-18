@@ -13,7 +13,6 @@ import json
 import tsol
 from simplecrypt import encrypt, decrypt
 import string
-import api
 import random
 
 lamden_home = os.environ.get('LAMDEN_HOME', None)
@@ -22,7 +21,6 @@ lamden_db_file = os.environ.get('LAMDEN_DB_FILE', None)
 
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
-api.main()
 
 def random_string(length):
     pool = string.ascii_letters + string.digits
@@ -73,10 +71,12 @@ def split_package_name(name):
 
 @click.group()
 def cli():
+	print('===     THIS SOFTWARE IS NOT PRODUCTION READY       ===')
+	print('===     THIS VERSION IS FOR TEST PURPOSES ONLY      ===')
+	print('=== PACKAGES UPLOADED MAY BE DELETED IN MIGRATIONS. ===')
 	pass
 
 @cli.command()
-
 @click.argument('name')
 def check(name):
 	# hit api to see if name is already registered
@@ -123,8 +123,10 @@ def pull(package_name, location):
 	if location == 'home':
 		print('ye')
 
-@click.option('--folder/--no-folder', default=False)
-def install(package_name, folder):
+@cli.command()
+@click.argument('package_name')
+@click.option('--location', prompt='Where to save (here = ./, home = current project home)')
+def install(package_name, location):
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
@@ -134,26 +136,17 @@ def install(package_name, folder):
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
 	d = r.json()['data']
-	if folder:
-		out = tsol.generate_code(StringIO(d['template']), eval(d['example']))
-		sys.stdout.write(str(out))
-		exit()
-	else:
-		print(d['template'])
-		print(d['example'])
-	# ask where to save files
-	project_folder = ''
-	project_folder = input('Directory to save package (enter for current working directory):')
-	project_folder = os.getcwd() if project_folder == '' else project_folder
 
+	print(d['template'])
+	print(d['example'])
+	# ask where to save file
 	try:
 		r.json()['data']['template']
 
 		project_folder = ''
 		if location != 'here' or location != 'home':
 			# ask where to save files
-			project_folder = input('Directory to save package (enter for current working directory):')
-			project_folder = os.getcwd() if project_folder == '' else project_folder
+			project_folder = location
 
 		elif location == 'here':
 			project_folder = os.getcwd()
@@ -169,9 +162,6 @@ def install(package_name, folder):
 
 		with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
 			f.write(str(r.json()['data']['example']))
-
-
-
 
 		print('Package successfully pulled!')
 
