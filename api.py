@@ -16,9 +16,11 @@ import pickle
 from simplecrypt import encrypt, decrypt
 import tsol
 from engines.sql import SQL_Engine
+from engines.cass_engine import Cassandra_Engine
 
 DB_NAME = 'sqlite:///test.db'
 KEY = None
+ENGINE = Cassandra_Engine(['127.0.0.1'])#SQL_Engine(DB_NAME)
 
 def error_payload(message):
 	return {
@@ -43,17 +45,13 @@ def random_string(length):
 
 class NameRegistry(Resource):
 	def get(self):
-		sql = SQL_Engine(DB_NAME)
-
-		if sql.check_name(request.form['name']) == True:
+		if ENGINE.check_name(request.form['name']) == True:
 			return error_payload('Name already registered.')
 		else:
 			return success_payload(None, 'Name available to register.')
 
 	def post(self):
-		sql = SQL_Engine(DB_NAME)
-
-		if sql.add_name(request.form['name'], request.form['n'], request.form['e']) == True:
+		if ENGINE.add_name(request.form['name'], request.form['n'], request.form['e']) == True:
 			return success_payload(None, 'Name successfully registered.')
 		else:
 			return error_payload('Unavailable to register name.')
@@ -65,11 +63,9 @@ class PackageRegistry(Resource):
 		# checks if the user can create a new package entry
 		# if so, returns a new secret
 		# user then must post the signed package to this endpoint
-		sql = SQL_Engine(DB_NAME)
-
-		if not sql.check_package(request.form['owner'], request.form['package']):
+		if not ENGINE.check_package(request.form['owner'], request.form['package']):
 			# try to pull the users public key
-			query = sql.get_key(request.form['owner'])
+			query = ENGINE.get_key(request.form['owner'])
 
 			# in doing so, check if the user exists
 			if query == None:
@@ -83,7 +79,7 @@ class PackageRegistry(Resource):
 
 			# sign and store it in the db so no plain text instance exists in the universe
 			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
-			query = sql.set_secret(request.form['owner'], server_signed_secret)
+			query = ENGINE.set_secret(request.form['owner'], server_signed_secret)
 
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
@@ -93,8 +89,6 @@ class PackageRegistry(Resource):
 			return error_payload('Package already exists.')
 
 	def post(self):
-		sql = SQL_Engine(DB_NAME)
-
 		payload = {
 			'owner' : request.form['owner'],
 			'package' : request.form['package'],
@@ -104,7 +98,7 @@ class PackageRegistry(Resource):
 		owner = request.form['owner']
 		package = request.form['package']
 		data = request.form['data']
-		b = sql.get_named_secret(owner)
+		b = ENGINE.get_named_secret(owner)
 		secret = rsa.decrypt(eval(b), KEY[1])
 
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
@@ -126,15 +120,13 @@ class PackageRegistry(Resource):
 		template = pickle.dumps(package_data['tsol'])
 		example = pickle.dumps(package_data['example'])
 
-		if sql.add_package(owner, package, template, example) == True:
+		if ENGINE.add_package(owner, package, template, example) == True:
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
 
 class Packages(Resource):
 	def get(self):
-		sql = SQL_Engine(DB_NAME)
-
-		data = sql.get_package(request.form['owner'], request.form['package'])
+		data = ENGINE.get_package(request.form['owner'], request.form['package'])
 
 		if data == None:
 			return error_payload('Could not find package.')
