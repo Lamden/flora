@@ -14,7 +14,7 @@ import string
 import random
 import pickle
 from simplecrypt import encrypt, decrypt
-
+import tsol
 from engines.sql import SQL_Engine
 
 DB_NAME = 'sqlite:///test.db'
@@ -58,9 +58,15 @@ class NameRegistry(Resource):
 		else:
 			return error_payload('Unavailable to register name.')
 
-class Packages(Resource):
+# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL_Engine thing.
+# POST required last secret. Secret is then flushed so auth is required again before POSTing again
+class PackageRegistry(Resource):
 	def get(self):
+		# checks if the user can create a new package entry
+		# if so, returns a new secret
+		# user then must post the signed package to this endpoint
 		sql = SQL_Engine(DB_NAME)
+
 		if not sql.check_package(request.form['owner'], request.form['package']):
 			# try to pull the users public key
 			query = sql.get_key(request.form['owner'])
@@ -82,20 +88,22 @@ class Packages(Resource):
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
 			return success_payload(str(user_signed_secret), 'Package available to register.')
-		data = sql.get_package(request.form['owner'], request.form['package'])
 
-		if data == None:
-			return error_payload('Could not find package.')
+		else:
+			return error_payload('Package already exists.')
 
-		return success_payload(data, 'Package successfully pulled.')
-  
 	def post(self):
 		sql = SQL_Engine(DB_NAME)
+
+		payload = {
+			'owner' : request.form['owner'],
+			'package' : request.form['package'],
+			'data' : request.form['data']
+		}
 
 		owner = request.form['owner']
 		package = request.form['package']
 		data = request.form['data']
-
 		b = sql.get_named_secret(owner)
 		secret = rsa.decrypt(eval(b), KEY[1])
 
@@ -115,18 +123,31 @@ class Packages(Resource):
 		# assert that the code compiles with the provided example
 		tsol.compile(StringIO(package_data['tsol']), package_data['example'])
 
-		template = pickle.dumps(request.form['template'])
-		example = pickle.dumps(request.form['example'])
+		template = pickle.dumps(package_data['tsol'])
+		example = pickle.dumps(package_data['example'])
 
-		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
+		if sql.add_package(owner, package, template, example) == True:
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
+
+class Packages(Resource):
+	def get(self):
+		sql = SQL_Engine(DB_NAME)
+
+		data = sql.get_package(request.form['owner'], request.form['package'])
+
+		if data == None:
+			return error_payload('Could not find package.')
+
+		return success_payload(data, 'Package successfully pulled.')
+
 
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
 api.add_resource(Packages, '/packages')
+api.add_resource(PackageRegistry, '/package_registry')
 	
 if __name__ == '__main__':
 	(pub, priv) = rsa.newkeys(512)

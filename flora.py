@@ -82,6 +82,7 @@ def check(name):
 	# hit api to see if name is already registered
 	print(check_name(name)['message'])
 
+#TODO
 def staging():
 	stdin_text = click.get_text_stream('stdin')
 	for line in stdin_text:
@@ -115,7 +116,7 @@ def register(name):
 @click.argument('package_name')
 @click.argument('location')
 def pull(package_name, location):
-	# no args should parse from a requirements.txt file
+	# no args should parse from a requirements.txt file recursively
 
 	if location == 'here':
 		print('yes')
@@ -148,10 +149,10 @@ def install(package_name, location):
 			# ask where to save files
 			project_folder = location
 
-		elif location == 'here':
+		if location == 'here':
 			project_folder = os.getcwd()
 
-		elif location == 'home':
+		if location == 'home':
 			project_folder = lamden_home
 
 		package_dir = os.path.join(project_folder, package_name)
@@ -207,34 +208,40 @@ def upload(package_name):
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
-	template = open(code_path[0]).read()
+	payload = {
+		'tsol' : open(code_path[0]).read(),
+		'example' : example
+	}
+
 	owner = split_string[0]
 	package = split_string[1]
 
-	# if so, decrypt the secret
-	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
+	# to replace authorize because you don't need it
+	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
-	print('Encrypting package...')
+	# check to see if there was a success (the package is available)
+	print(r.text)
+	if r.json()['status'] == 'success':
 
-	#sign package here
+		# if so, decrypt the secret
+		secret = r.json()['data']
+		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
+		cipher = rsa.decrypt(eval(secret), priv)
 
-	message = random_string(64)
-	signature = rsa.sign(message.encode('utf8'), priv, 'SHA-1')
+		print('Encrypting package...')
 
-	payload = {
-		'owner' : owner,
-		'package' : package,
-		'template' : template,
-		'example' : str(example),
-		'message' : message,
-		'signature' : str(signature)
-	}
+		# sign data
+		payload = json.dumps(payload)
+		message = encrypt(cipher, payload)
 
-	# post data
-	print('Uploading to Flora under {}/{}...'.format(owner, package))
-	r = requests.post('{}/packages'.format(API_LOCATION), data = payload)
+		# post data
+		data = message
+		print('Uploading to Flora under {}/{}...'.format(owner, package))
+		r = requests.post('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
 
-	print(r.json()['message'])
+		print(r.json()['message'])
+	else:
+		print(r.json()['message'])
 
 @cli.command()
 @click.argument('package_name')
