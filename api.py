@@ -14,12 +14,8 @@ import string
 import random
 import pickle
 from simplecrypt import encrypt, decrypt
-import ipfsapi
-
-import tsol
 
 from engines.sql import SQL_Engine
-from engines.ipfs import IPFS_Engine
 
 DB_NAME = 'sqlite:///test.db'
 KEY = None
