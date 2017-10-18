@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 import json
 import os
 import re
+from io import StringIO
 import click
 import rsa
 import string
@@ -71,15 +72,10 @@ class NameRegistry(Resource):
 		else:
 			return error_payload('Unavailable to register name.')
 
-# GET does not require auth and just downloads packages. no data returns the DHT on IPFS or the whole SQL_Engine thing.
-# POST required last secret. Secret is then flushed so auth is required again before POSTing again
-class PackageRegistry(Resource):
-	def get(self):
-		# checks if the user can create a new package entry
-		# if so, returns a new secret
-		# user then must post the signed package to this endpoint
-		sql = SQL_Engine(DB_NAME)
 
+class Packages(Resource):
+	def get(self):
+		sql = SQL_Engine(DB_NAME)
 		if not sql.check_package(request.form['owner'], request.form['package']):
 			# try to pull the users public key
 			query = sql.get_key(request.form['owner'])
@@ -101,10 +97,13 @@ class PackageRegistry(Resource):
 			# sign and send secret to user
 			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
 			return success_payload(str(user_signed_secret), 'Package available to register.')
+		data = sql.get_package(request.form['owner'], request.form['package'])
 
-		else:
-			return error_payload('Package already exists.')
+		if data == None:
+			return error_payload('Could not find package.')
 
+		return success_payload(data, 'Package successfully pulled.')
+  
 	def post(self):
 		sql = SQL_Engine(DB_NAME)
 
@@ -131,10 +130,10 @@ class PackageRegistry(Resource):
 		# assert that the code compiles with the provided example
 		tsol.compile(StringIO(package_data['tsol']), package_data['example'])
 
-		template = pickle.dumps(package_data['tsol'])
-		example = pickle.dumps(package_data['example'])
+		template = pickle.dumps(request.form['template'])
+		example = pickle.dumps(request.form['example'])
 
-		if sql.add_package(owner, package, template, example) == True:
+		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
 
@@ -152,8 +151,8 @@ app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
-api.add_resource(PackageRegistry, '/package_registry')
 api.add_resource(Packages, '/packages')
+
 
 (pub, priv) = rsa.newkeys(512)
 KEY = (pub, priv)
@@ -165,8 +164,8 @@ if not os.path.isfile('./SUPERSECRET'):
 else:
 	with open('./SUPERSECRET', 'rb') as f:
 		KEY = pickle.load(f)
-
-def main():	
+	
+def main():
 	http_server = WSGIServer(('', 5000), app)
 	srv_greenlet = gevent.spawn(http_server.start)
 

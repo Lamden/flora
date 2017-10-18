@@ -1,3 +1,5 @@
+from io import StringIO
+import sys
 import sqlite3
 import click
 import subprocess
@@ -10,7 +12,9 @@ import glob
 import json
 import tsol
 from simplecrypt import encrypt, decrypt
+import string
 import api
+import random
 
 lamden_home = os.environ.get('LAMDEN_HOME', None)
 lamden_folder_path = os.environ.get('LAMDEN_FOLDER_PATH', None)
@@ -19,6 +23,11 @@ lamden_db_file = os.environ.get('LAMDEN_DB_FILE', None)
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
+
+def random_string(length):
+    pool = string.ascii_letters + string.digits
+    return ''.join(random.choice(pool) for i in range(length))
+
 def check_package_name_format(name):
 	split_string = name.split('/')
 	if len(split_string) != 2:
@@ -67,10 +76,16 @@ def cli():
 	pass
 
 @cli.command()
+
 @click.argument('name')
 def check(name):
 	# hit api to see if name is already registered
 	print(check_name(name)['message'])
+
+def staging():
+	stdin_text = click.get_text_stream('stdin')
+	for line in stdin_text:
+		print(line)
 
 # registers a new username
 @cli.command()
@@ -108,6 +123,8 @@ def pull(package_name, location):
 	if location == 'home':
 		print('ye')
 
+@click.option('--folder/--no-folder', default=False)
+def install(package_name, folder):
 	split_string = check_package_name_format(package_name)
 	if split_string == False:
 		print('Invalid format. Propose a package name such that <owner>/<package_name>.')
@@ -115,6 +132,19 @@ def pull(package_name, location):
 	owner = split_string[0]
 	package = split_string[1]
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+
+	d = r.json()['data']
+	if folder:
+		out = tsol.generate_code(StringIO(d['template']), eval(d['example']))
+		sys.stdout.write(str(out))
+		exit()
+	else:
+		print(d['template'])
+		print(d['example'])
+	# ask where to save files
+	project_folder = ''
+	project_folder = input('Directory to save package (enter for current working directory):')
+	project_folder = os.getcwd() if project_folder == '' else project_folder
 
 	try:
 		r.json()['data']['template']
@@ -139,6 +169,7 @@ def pull(package_name, location):
 
 		with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
 			f.write(str(r.json()['data']['example']))
+
 
 
 
@@ -186,40 +217,34 @@ def upload(package_name):
 
 	print('*.tsol and *.json compiled with 0 errors. Proceeding to upload.')
 
-	payload = {
-		'tsol' : open(code_path[0]).read(),
-		'example' : example
-	}
-
+	template = open(code_path[0]).read()
 	owner = split_string[0]
 	package = split_string[1]
 
-	# to replace authorize because you don't need it
-	r = requests.get('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+	# if so, decrypt the secret
+	(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
 
-	# check to see if there was a success (the package is available)
+	print('Encrypting package...')
+
+	#sign package here
+
+	message = random_string(64)
+	signature = rsa.sign(message.encode('utf8'), priv, 'SHA-1')
+
+	payload = {
+		'owner' : owner,
+		'package' : package,
+		'template' : template,
+		'example' : str(example),
+		'message' : message,
+		'signature' : str(signature)
+	}
+
+	# post data
+	print('Uploading to Flora under {}/{}...'.format(owner, package))
+	r = requests.post('{}/packages'.format(API_LOCATION), data = payload)
+
 	print(r.json()['message'])
-	if r.json()['status'] == 'success':
-
-		# if so, decrypt the secret
-		secret = r.json()['data']
-		(pub, priv) = pickle.load(open('{}/.key'.format(KEY_LOCATION), 'rb'))
-		cipher = rsa.decrypt(eval(secret), priv)
-
-		print('Encrypting package...')
-
-		# sign data
-		payload = json.dumps(payload)
-		message = encrypt(cipher, payload)
-
-		# post data
-		data = message
-		print('Uploading to Flora under {}/{}...'.format(owner, package))
-		r = requests.post('{}/package_registry'.format(API_LOCATION), data = {'owner' : owner, 'package' : package, 'data' : str(data)})
-
-		print(r.json()['message'])
-	else:
-		print(r.json()['message'])
 
 @cli.command()
 @click.argument('package_name')
