@@ -128,7 +128,7 @@ class Packages(Resource):
 	def get(self):
 		data = ENGINE.get_package(request.form['owner'], request.form['package'])
 
-		if data == None:
+		if data == None or data == False:
 			return error_payload('Could not find package.')
 
 		return success_payload(data, 'Package successfully pulled.')

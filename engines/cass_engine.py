@@ -54,10 +54,8 @@ class Cassandra_Engine(Engine):
 		results = self.connection.execute("SELECT * FROM public.contracts \
 			WHERE owner='{}' AND package='{}' ALLOW FILTERING".format(owner, package))
 		fetched = results.current_rows
-		print(fetched)
 
 		if not self.exists(fetched):
-			print('ree')
 			return False
 
 		return {

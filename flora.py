@@ -136,12 +136,13 @@ def install(package_name, location):
 	package = split_string[1]
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
 
-	d = r.json()['data']
-
-	print(d['template'])
-	print(d['example'])
 	# ask where to save file
 	try:
+		d = r.json()['data']
+
+		print(d['template'])
+		print(d['example'])
+
 		r.json()['data']['template']
 
 		project_folder = ''
