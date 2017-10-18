@@ -3,6 +3,7 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 from gevent.pywsgi import WSGIServer
+from io import StringIO
 
 from flask import Flask, request
 from flask_restful import Resource, Api
@@ -75,27 +76,59 @@ class NameRegistry(Resource):
 class Packages(Resource):
 	def get(self):
 		sql = SQL_Engine(DB_NAME)
+		if not sql.check_package(request.form['owner'], request.form['package']):
+			# try to pull the users public key
+			query = sql.get_key(request.form['owner'])
 
+			# in doing so, check if the user exists
+			if query == None:
+				return error_payload('Owner does not exist.')
+
+			# construct the user's public key
+			user_public_key = rsa.PublicKey(int(query[0]), int(query[1]))
+
+			# create a new secret
+			secret = random_string(53)
+
+			# sign and store it in the db so no plain text instance exists in the universe
+			server_signed_secret = str(rsa.encrypt(secret.encode('utf8'), KEY[0]))
+			query = sql.set_secret(request.form['owner'], server_signed_secret)
+
+			# sign and send secret to user
+			user_signed_secret = rsa.encrypt(secret.encode('utf8'), user_public_key)
+			return success_payload(str(user_signed_secret), 'Package available to register.')
 		data = sql.get_package(request.form['owner'], request.form['package'])
 
 		if data == None:
 			return error_payload('Could not find package.')
 
 		return success_payload(data, 'Package successfully pulled.')
+  
 	def post(self):
 		sql = SQL_Engine(DB_NAME)
 
-		# check to see if the message is truely signed by the correct user
-		key = sql.get_key(request.form['owner'])
-		pub = rsa.PublicKey(int(key[0]), int(key[1]))
+		owner = request.form['owner']
+		package = request.form['package']
+		data = request.form['data']
 
-		assert rsa.verify(request.form['message'].encode('utf8'), eval(request.form['signature']), pub)
+		b = sql.get_named_secret(owner)
+		secret = rsa.decrypt(eval(b), KEY[1])
 
-		print('Successfully verified identity...')
+		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
+		# compilation of this code should return true
+		# if there are errors, don't commit it to the db
+		# otherwise, commit it
+		raw_data = decrypt(secret, eval(data))
+		package_data = json.loads(raw_data.decode('utf8'))
+		'''
+		payload = {
+			'tsol' : open(code_path[0]).read(),
+			'example' : example
+		}
+		'''
 
 		# assert that the code compiles with the provided example
-		print(request.form['example'])
-		tsol.compile(StringIO(request.form['template']), json.loads(request.form['example']))
+		tsol.compile(StringIO(package_data['tsol']), package_data['example'])
 
 		template = pickle.dumps(request.form['template'])
 		example = pickle.dumps(request.form['example'])
@@ -104,12 +137,34 @@ class Packages(Resource):
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
 
+class Packages(Resource):
+	def get(self):
+		sql = SQL_Engine(DB_NAME)
+
+		if sql.check_package(request.form['owner'], request.form['package']) == False:
+			return error_payload('Could not find package.')
+		
+		data = sql.get_package(request.form['owner'], request.form['package'])
+		return success_payload(data, 'Package successfully pulled.')
+
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
 api.add_resource(Packages, '/packages')
 
+
+(pub, priv) = rsa.newkeys(512)
+KEY = (pub, priv)
+
+if not os.path.isfile('./SUPERSECRET'):
+	with open('./SUPERSECRET', 'wb') as f:
+		pickle.dump(KEY, f, pickle.HIGHEST_PROTOCOL)
+
+else:
+	with open('./SUPERSECRET', 'rb') as f:
+		KEY = pickle.load(f)
+	
 def main():
 	http_server = WSGIServer(('', 5000), app)
 	srv_greenlet = gevent.spawn(http_server.start)

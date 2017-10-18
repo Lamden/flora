@@ -16,6 +16,10 @@ import string
 import api
 import random
 
+lamden_home = os.environ.get('LAMDEN_HOME', None)
+lamden_folder_path = os.environ.get('LAMDEN_FOLDER_PATH', None)
+lamden_db_file = os.environ.get('LAMDEN_DB_FILE', None)
+
 API_LOCATION = 'http://127.0.0.1:5000'
 KEY_LOCATION = os.path.expanduser('~/.flora')
 api.main()
@@ -72,6 +76,12 @@ def cli():
 	pass
 
 @cli.command()
+
+@click.argument('name')
+def check(name):
+	# hit api to see if name is already registered
+	print(check_name(name)['message'])
+
 def staging():
 	stdin_text = click.get_text_stream('stdin')
 	for line in stdin_text:
@@ -102,13 +112,17 @@ def register(name):
 			print('Error registering name: {}'.format(name))
 
 @cli.command()
-@click.argument('name')
-def check(name):
-	# hit api to see if name is already registered
-	print(check_name(name)['message'])
-
-@cli.command()
 @click.argument('package_name')
+@click.argument('location')
+def pull(package_name, location):
+	# no args should parse from a requirements.txt file
+
+	if location == 'here':
+		print('yes')
+
+	if location == 'home':
+		print('ye')
+
 @click.option('--folder/--no-folder', default=False)
 def install(package_name, folder):
 	split_string = check_package_name_format(package_name)
@@ -118,6 +132,7 @@ def install(package_name, folder):
 	owner = split_string[0]
 	package = split_string[1]
 	r = requests.get('{}/packages'.format(API_LOCATION), data = {'owner' : owner, 'package' : package})
+
 	d = r.json()['data']
 	if folder:
 		out = tsol.generate_code(StringIO(d['template']), eval(d['example']))
@@ -131,16 +146,44 @@ def install(package_name, folder):
 	project_folder = input('Directory to save package (enter for current working directory):')
 	project_folder = os.getcwd() if project_folder == '' else project_folder
 
-	package_dir = os.path.join(project_folder, package_name)
-	os.makedirs(package_dir)
+	try:
+		r.json()['data']['template']
 
-	with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
-		f.write(d['template'])
+		project_folder = ''
+		if location != 'here' or location != 'home':
+			# ask where to save files
+			project_folder = input('Directory to save package (enter for current working directory):')
+			project_folder = os.getcwd() if project_folder == '' else project_folder
 
-	with open(os.path.join(package_dir, 'example.json'), 'w') as f:
-		f.write(str(d['example']))
+		elif location == 'here':
+			project_folder = os.getcwd()
 
-	print('Package successfully pulled!')
+		elif location == 'home':
+			project_folder = lamden_home
+
+		package_dir = os.path.join(project_folder, package_name)
+		os.makedirs(package_dir)
+
+		with open(os.path.join(package_dir, 'template.tsol'), 'w') as f:
+			f.write(r.json()['data']['template'])
+
+		with open(os.path.join(package_dir, 'example.tsol'), 'w') as f:
+			f.write(str(r.json()['data']['example']))
+
+
+
+
+		print('Package successfully pulled!')
+
+	except:
+		print(r.json()['message'])
+
+@cli.command()
+@click.argument('package_name')
+def stage():
+	# check the chain folder for contracts
+	sol_files = os.path.join(settings.lamden_folder_path, 'contracts/*.sol')
+	pass
 
 @cli.command()
 @click.argument('package_name')
