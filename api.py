@@ -131,22 +131,8 @@ api = Api(app)
 
 api.add_resource(NameRegistry, '/names')
 api.add_resource(Packages, '/packages')
-
-
-(pub, priv) = rsa.newkeys(512)
-KEY = (pub, priv)
-
-if not os.path.isfile('./SUPERSECRET'):
-	with open('./SUPERSECRET', 'wb') as f:
-		pickle.dump(KEY, f, pickle.HIGHEST_PROTOCOL)
-
-else:
-	with open('./SUPERSECRET', 'rb') as f:
-		KEY = pickle.load(f)
 	
-def main():
-	http_server = WSGIServer(('', 5000), app)
-	srv_greenlet = gevent.spawn(http_server.start)
-
 if __name__ == '__main__':
-	main()
+	(pub, priv) = rsa.newkeys(512)
+	KEY = (pub, priv)
+    app.run(debug=True)
