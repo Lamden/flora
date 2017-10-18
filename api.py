@@ -1,8 +1,4 @@
-import gevent
-import gevent.monkey
-gevent.monkey.patch_all()
 
-from gevent.pywsgi import WSGIServer
 from io import StringIO
 
 from flask import Flask, request
@@ -26,13 +22,7 @@ from engines.sql import SQL_Engine
 from engines.ipfs import IPFS_Engine
 
 DB_NAME = 'sqlite:///test.db'
-
-# potential abstraction of engine to support sql, ipfs, yada yada
-#api = ipfsapi.connect('127.0.0.1', 5001)
-
 KEY = None
-
-IPFS_LOCATION = ''
 
 def error_payload(message):
 	return {
@@ -71,7 +61,6 @@ class NameRegistry(Resource):
 			return success_payload(None, 'Name successfully registered.')
 		else:
 			return error_payload('Unavailable to register name.')
-
 
 class Packages(Resource):
 	def get(self):
@@ -136,16 +125,6 @@ class Packages(Resource):
 		if sql.add_package(request.form['owner'], request.form['package'], template, example) == True:
 			return success_payload(None, 'Package successfully uploaded.')
 		return error_payload('Problem uploading package. Try again.')
-
-class Packages(Resource):
-	def get(self):
-		sql = SQL_Engine(DB_NAME)
-
-		if sql.check_package(request.form['owner'], request.form['package']) == False:
-			return error_payload('Could not find package.')
-		
-		data = sql.get_package(request.form['owner'], request.form['package'])
-		return success_payload(data, 'Package successfully pulled.')
 
 app = Flask(__name__)
 api = Api(app)
