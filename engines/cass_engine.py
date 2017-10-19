@@ -13,13 +13,11 @@ class Cassandra_Engine(Engine):
 	def __init__(self, *args):
 		self.log = logging.getLogger(resource_filename(__name__, __file__))
 
-		self.cluster = Cluster(args[0])#, port=args[1])
-		# self.pub = args[2]
-		# self.priv = args[3]
+		self.cluster = Cluster(args[0])
 
-		# going to have to modify this shit later.
 		self.connection = self.cluster.connect()
 		self.connection.row_factory = tuple_factory
+		
 		self.connection.execute("CREATE KEYSPACE IF NOT EXISTS public \
 			WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
 
@@ -41,7 +39,6 @@ class Cassandra_Engine(Engine):
 
 	def prepare_execute_return(self, query, arguments):
 		prepared = self.connection.prepare(query)
-		#prepared = prepared.bind(arguments)
 		results = self.connection.execute(prepared, arguments)
 		return results.current_rows
 
@@ -60,7 +57,7 @@ class Cassandra_Engine(Engine):
 		return self.check_name(name)
 
 	def get_package(self, owner, package):
-		query = "SELECT * FROM public.contracts \
+		query = "SELECT template, example FROM public.contracts \
 			WHERE owner=? AND package=? ALLOW FILTERING"
 		fetched = self.prepare_execute_return(query, (owner, package))
 
@@ -68,8 +65,8 @@ class Cassandra_Engine(Engine):
 			return False
 
 		return {
-			'template' : str(pickle.loads(query[0])),
-			'example' : str(pickle.loads(query[1]))
+			'template' : str(pickle.loads(fetched[0][0])),
+			'example' : str(pickle.loads(fetched[0][1]))
 		}
 
 	def check_package(self, owner, package):
