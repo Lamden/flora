@@ -51,15 +51,12 @@ class Cassandra_Engine(Engine):
 		return True
 
 	def check_name(self, name):
-		query = "SELECT * FROM public.users \
-			where name=?"
-		fetched = self.prepare_execute_return(query, (name,))
-		return self.exists(fetched)
+		return self.exists(self.prepare_execute_return("SELECT * FROM public.users \
+			where name=?", (name,)))
 
 	def add_name(self, name, n, e):
-		query = "INSERT INTO public.users (name, n, e) \
-			VALUES (?, ?, ?) IF NOT EXISTS"
-		self.prepare_execute_return(query, (name, n, e))
+		self.prepare_execute_return("INSERT INTO public.users (name, n, e) \
+			VALUES (?, ?, ?) IF NOT EXISTS", (name, n, e))
 		return self.check_name(name)
 
 	def get_package(self, owner, package):
@@ -76,28 +73,20 @@ class Cassandra_Engine(Engine):
 		}
 
 	def check_package(self, owner, package):
-		query = "SELECT * FROM public.contracts \
-			WHERE owner=? AND package=? ALLOW FILTERING"
-		fetched = self.prepare_execute_return(query, (owner, package))
-		return self.exists(fetched)
+		return self.exists(self.prepare_execute_return("SELECT * FROM public.contracts \
+			WHERE owner=? AND package=? ALLOW FILTERING", (owner, package)))
 
 	def get_key(self, name):
-		query = "SELECT n, e FROM public.users where name = ?"
-		fetched = self.prepare_execute_return(query, (name,))
-		return fetched[0]
+		return self.prepare_execute_return("SELECT n, e FROM public.users where name = ?", (name,))[0]
 
 	def add_package(self, owner, package, template, example):
-		query = "INSERT INTO public.contracts (id, owner, package, template, example) \
-			VALUES (?, ?, ?, ?, ?) IF NOT EXISTS"
-		self.prepare_execute_return(query, (uuid.uuid1(), owner, package, template, example))
+		self.prepare_execute_return("INSERT INTO public.contracts (id, owner, package, template, example) \
+			VALUES (?, ?, ?, ?, ?) IF NOT EXISTS", (uuid.uuid1(), owner, package, template, example))
 		return self.check_package(owner, package)
 
 	def set_secret(self, name, secret):
-		query = "UPDATE public.users SET secret=? where name=?"
-		self.prepare_execute_return(query, (secret, name))
+		self.prepare_execute_return("UPDATE public.users SET secret=? where name=?", (secret, name))
 		return self.exists(self.get_named_secret(name))
 
 	def get_named_secret(self, name):
-		query = "SELECT secret FROM public.users where name = ?"
-		fetched = self.prepare_execute_return(query, (name,))
-		return fetched[0][0]
+		return self.prepare_execute_return("SELECT secret FROM public.users where name = ?", (name,))[0][0]
