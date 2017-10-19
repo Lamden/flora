@@ -33,7 +33,9 @@ Flora solves to industry problem of community members gravitating towards certai
 
 Flora will also soon support inline imports using our Templated Solidity paradigm so that you no longer have to copy and paste from GitHub repositories when you want to include the same piece of code over and over again. This will accelerate the concept of inheritance which leads to more complex data types and more interesting pieces of technology being developed.
 
-"But I thought you were going to use IPFS!?"
+#### "But I thought you were going to use IPFS?"
+
+Upon multiple implementation attempts, we were not able to produce a system that does not sacrifice the core tenents of what we want Flora to be. This diverges from the initial white paper.
 
 IPFS is cool software that is still in the alpha phase and has not been load tested by enterprises. We want to develop a system that is easy to use, follows current standards, and has been industry tested. Apache Cassandra was developed at Facebook initially, went through the Apache program, and is now an official open-source Apache system that is being used today in mission critical applications.
 
