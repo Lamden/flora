@@ -7,6 +7,7 @@ import pickle
 import uuid
 
 from cassandra.cluster import Cluster
+from cassandra.query import dict_factory, tuple_factory
 
 class Cassandra_Engine(Engine):
 	def __init__(self, *args):
@@ -18,14 +19,18 @@ class Cassandra_Engine(Engine):
 
 		# going to have to modify this shit later.
 		self.connection = self.cluster.connect()
-
+		self.connection.row_factory = tuple_factory
 		self.connection.execute("CREATE KEYSPACE IF NOT EXISTS public \
+			WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+
+		self.connection.execute("CREATE KEYSPACE IF NOT EXISTS internal \
 			WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
 
 		self.connection.execute("CREATE TABLE IF NOT EXISTS public.users ( \
 			name text PRIMARY KEY, \
 			n text, \
-			e text);")
+			e text, \
+			secret text);")
 
 		self.connection.execute("CREATE TABLE IF NOT EXISTS public.contracts ( \
 			id uuid PRIMARY KEY, \
@@ -34,26 +39,33 @@ class Cassandra_Engine(Engine):
 			template blob, \
 			example blob);")
 
+	def prepare_execute_return(self, query, arguments):
+		prepared = self.connection.prepare(query)
+		#prepared = prepared.bind(arguments)
+		results = self.connection.execute(prepared, arguments)
+		return results.current_rows
+
 	def exists(self, query):
 		if len(query) <= 0:
 			return False
 		return True
 
 	def check_name(self, name):
-		results = self.connection.execute("SELECT * FROM public.users \
-			where name = '{}'".format(name))
-		fetched = results.current_rows
+		query = "SELECT * FROM public.users \
+			where name=?"
+		fetched = self.prepare_execute_return(query, (name,))
 		return self.exists(fetched)
 
 	def add_name(self, name, n, e):
-		self.connection.execute("INSERT INTO public.users (name, n, e) \
-			VALUES ('{}', '{}', '{}') IF NOT EXISTS".format(name, n, e))
+		query = "INSERT INTO public.users (name, n, e) \
+			VALUES (?, ?, ?) IF NOT EXISTS"
+		self.prepare_execute_return(query, (name, n, e))
 		return self.check_name(name)
 
 	def get_package(self, owner, package):
-		results = self.connection.execute("SELECT * FROM public.contracts \
-			WHERE owner='{}' AND package='{}' ALLOW FILTERING".format(owner, package))
-		fetched = results.current_rows
+		query = "SELECT * FROM public.contracts \
+			WHERE owner=? AND package=? ALLOW FILTERING"
+		fetched = self.prepare_execute_return(query, (owner, package))
 
 		if not self.exists(fetched):
 			return False
@@ -64,14 +76,28 @@ class Cassandra_Engine(Engine):
 		}
 
 	def check_package(self, owner, package):
-		query = self.connection.execute("SELECT * FROM packages WHERE owner='{}' AND package='{}' ALLOW FILTERING".format(owner, package)).fetchone()
-		return self.exists(query)
+		query = "SELECT * FROM public.contracts \
+			WHERE owner=? AND package=? ALLOW FILTERING"
+		fetched = self.prepare_execute_return(query, (owner, package))
+		return self.exists(fetched)
 
 	def get_key(self, name):
-		return self.connection.execute("SELECT n, e FROM names WHERE name='{}'".format(name)).fetchone()
+		query = "SELECT n, e FROM public.users where name = ?"
+		fetched = self.prepare_execute_return(query, (name,))
+		return fetched[0]
 
 	def add_package(self, owner, package, template, example):
-		self.connection = self.cluster.connect()
-
-		self.connection.execute('INSERT INTO packages VALUES (?,?,?,?)', (owner, package, template, example))
+		query = "INSERT INTO public.contracts (id, owner, package, template, example) \
+			VALUES (?, ?, ?, ?, ?) IF NOT EXISTS"
+		self.prepare_execute_return(query, (uuid.uuid1(), owner, package, template, example))
 		return self.check_package(owner, package)
+
+	def set_secret(self, name, secret):
+		query = "UPDATE public.users SET secret=? where name=?"
+		self.prepare_execute_return(query, (secret, name))
+		return self.exists(self.get_named_secret(name))
+
+	def get_named_secret(self, name):
+		query = "SELECT secret FROM public.users where name = ?"
+		fetched = self.prepare_execute_return(query, (name,))
+		return fetched[0][0]

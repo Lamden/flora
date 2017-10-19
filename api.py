@@ -99,6 +99,7 @@ class PackageRegistry(Resource):
 		package = request.form['package']
 		data = request.form['data']
 		b = ENGINE.get_named_secret(owner)
+		print(b)
 		secret = rsa.decrypt(eval(b), KEY[1])
 
 		# data is a python tuple of the templated solidity at index 0 and an example payload at index 1
