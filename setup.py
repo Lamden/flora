@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='flora',
+    name='flora-cli',
     version='0.1',
     py_modules=['flora'],
     include_package_data=True,
@@ -22,7 +22,8 @@ setup(
          'semantic_version',
          'pyasn1',
          'pytz',
-         'aniso8601'
+         'aniso8601',
+         'cassandra-driver'
     ],
     entry_points='''
         [console_scripts]

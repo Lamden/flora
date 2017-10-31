@@ -18,9 +18,8 @@ import tsol
 from engines.sql import SQL_Engine
 from engines.cass_engine import Cassandra_Engine
 
-DB_NAME = 'sqlite:///test.db'
 KEY = None
-ENGINE = Cassandra_Engine(['127.0.0.1'])#SQL_Engine(DB_NAME)
+ENGINE = Cassandra_Engine(['127.0.0.1'])
 
 def error_payload(message):
 	return {

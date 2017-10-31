@@ -7,11 +7,3 @@ flora.egg-info/dependency_links.txt
 flora.egg-info/entry_points.txt
 flora.egg-info/requires.txt
 flora.egg-info/top_level.txt
-ipfsapi/__init__.py
-ipfsapi/client.py
-ipfsapi/encoding.py
-ipfsapi/exceptions.py
-ipfsapi/http.py
-ipfsapi/multipart.py
-ipfsapi/utils.py
-ipfsapi/version.py

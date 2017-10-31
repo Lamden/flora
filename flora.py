@@ -69,6 +69,28 @@ def split_package_name(name):
 
 	return payload
 
+def directory_has_smart_contract(location):
+	# returns bool if there is a tsol contract in said directory
+	# probably makes more sense to put this inside of the tsol package
+	code_path = glob.glob(os.path.join(location, '*.tsol'))
+	example = glob.glob(os.path.join(location, '*.json'))
+
+	assert len(code_path) > 0 and len(example) > 0, 'Could not find *.tsol and *.json files in provided directory.'
+
+	# pop off the first file name and turn the code into a file object
+	code = open(code_path[0])
+
+	# turn the example into a dict
+	with open(example[0]) as e:
+		example = json.load(e)
+
+	try:
+		tsol.compile(code, example)
+	except Exception as e:
+		print(e)
+		return False
+	return True
+
 @click.group()
 def cli():
 	print('===     THIS SOFTWARE IS NOT PRODUCTION READY       ===')
@@ -111,18 +133,6 @@ def register(name):
 			print('Successfully registered new name: {}'.format(name))
 		else:
 			print('Error registering name: {}'.format(name))
-
-@cli.command()
-@click.argument('package_name')
-@click.argument('location')
-def pull(package_name, location):
-	# no args should parse from a requirements.txt file recursively
-
-	if location == 'here':
-		print('yes')
-
-	if location == 'home':
-		print('ye')
 
 @cli.command()
 @click.argument('package_name')
@@ -243,6 +253,38 @@ def upload(package_name):
 		print(r.json()['message'])
 	else:
 		print(r.json()['message'])
+
+@cli.command()
+@click.argument('location')
+def generate(location):
+	# cli wizard for creating a new contract from a template
+	if directory_has_smart_contract(location):
+		example_payload = json.load(open(glob.glob(os.path.join(location, '*.json'))[0]))
+		print(example_payload)
+		for k, v in example_payload.items():
+			value = input(k + ':')
+			if value != '':
+				example_payload[k] = value
+		print(example_payload)
+
+		code_path = glob.glob(os.path.join(location, '*.tsol'))
+		tsol.compile(open(code_path[0]), example_payload)
+		print('Code compiles with new payload.')
+		selection = ''
+		while True:
+			selection = input('(G)enerate Solidity contract or (E)xport implementation:')
+			if selection.lower() == 'g':
+				output_name = input('Name your contract file without an extension:')
+				code = tsol.generate_code(open(code_path[0]).read(), example_payload)
+				open(os.path.join(location, '{}.sol'.format(output_name)), 'w').write(code)
+				break
+
+			if selection.lower() == 'e':
+				output_name = input('Name your implementation file without an extension:')
+				json.dump(example_payload, open(os.path.join(location, '{}.json'.format(output_name)), 'w'))
+				break
+	else:
+		print('Provided directory does not contain a *.tsol and *.json or does not compile.')
 
 @cli.command()
 @click.argument('package_name')

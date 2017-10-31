@@ -1,0 +1,9 @@
+{
+	"contract_name" : "CustomCrowdsale",
+	"start_time" : "1600000000",
+	"end_time" : "1700000000",
+	"rate" : "100",
+	"cap" : "5000000000000000000000",
+	"wallet" : "0x00000000000000000000000000000000000001",
+	"token_address" : "0x123456789abcdef123456789abcdef123456789a"
+}
